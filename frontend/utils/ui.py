@@ -25,7 +25,13 @@ def show_flash(key: str, errors_caption: str = "") -> None:
 def pager(key: str, total: int, size: int) -> int:
     """上一頁／下一頁導覽，回傳目前頁碼（存在 session_state[key]）。"""
     total_pages = max(1, -(-total // size))
-    page = min(st.session_state.setdefault(key, 1), total_pages)
+    requested = st.session_state.setdefault(key, 1)
+    page = min(requested, total_pages)
+    if page != requested:
+        # 例如刪掉最後一頁唯一一筆：本次資料是用超出範圍的頁碼抓的（空的），
+        # 寫回合法頁碼後重跑，重新抓正確那一頁
+        st.session_state[key] = page
+        st.rerun()
     prev, label, nxt = st.columns([1, 2, 1])
     if prev.button("← 上一頁", key=f"{key}_prev", disabled=page <= 1):
         st.session_state[key] = page - 1

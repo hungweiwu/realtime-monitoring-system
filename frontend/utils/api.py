@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import httpx
@@ -5,6 +6,8 @@ import streamlit as st
 
 from utils import auth
 from utils.config import API_BASE_URL
+
+logger = logging.getLogger(__name__)
 
 
 class ApiError(Exception):
@@ -34,7 +37,9 @@ def request(method: str, path: str, *, authenticated: bool = True, **kwargs: Any
     try:
         resp = httpx.request(method, f"{API_BASE_URL}{path}", headers=headers, timeout=30, **kwargs)
     except httpx.HTTPError as exc:
-        raise ApiError(0, f"無法連線到後端：{exc}") from exc
+        # 詳細原因（含內部網址）只寫 log，畫面上不顯示
+        logger.warning("backend request failed: %s %s: %r", method, path, exc)
+        raise ApiError(0, "無法連線到後端服務，請稍後再試") from exc
 
     if resp.status_code == 401 and authenticated:
         auth.clear()

@@ -2,7 +2,10 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- SRI：CDN 回傳的檔案被竄改時瀏覽器拒絕執行（雜湊值與 cdnjs 公布值、自行下載計算的值一致） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root { --fg: #31333f; --muted: #6b7280; --card: #f0f2f6; --ok: #16a34a; --warn: #d97706; --bad: #dc2626; }
   @media (prefers-color-scheme: dark) {
@@ -13,6 +16,8 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
   #alert { display: none; padding: 10px 14px; border-radius: 8px; background: rgba(220, 38, 38, .15);
            border: 1px solid var(--bad); color: var(--bad); margin-bottom: 10px; font-weight: 600; }
+  #libfail { display: none; padding: 10px 14px; border-radius: 8px; background: rgba(220, 38, 38, .15);
+             border: 1px solid var(--bad); color: var(--bad); margin-bottom: 10px; }
   #auth { display: none; padding: 10px 14px; border-radius: 8px; background: rgba(217, 119, 6, .15);
           border: 1px solid var(--warn); color: var(--warn); margin-bottom: 10px; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
@@ -29,6 +34,7 @@
   <span style="color: var(--muted)">最近 <span id="window"></span> 筆 · 異常 <span id="anomaly-count">0</span> 筆</span>
 </div>
 <div id="auth">登入已失效，請點左側「登出」後重新登入。</div>
+<div id="libfail">圖表函式庫（Chart.js）載入失敗：請確認瀏覽器可連線至 cdnjs.cloudflare.com 後重新整理。</div>
 <div id="alert"></div>
 <div class="grid">
   <div class="card"><h3>即時數值</h3><div class="chart"><canvas id="line"></canvas></div></div>
@@ -38,6 +44,12 @@
 <script>
 // 由 Python 端以 json.dumps 注入：{ wsUrl, token, initial: [...], windowSize }
 const CONFIG = __CONFIG__;
+if (typeof Chart === "undefined") {
+  // CDN 被擋、離線或 SRI 驗證失敗：明確告知，而不是停在「連線中…」
+  document.getElementById("libfail").style.display = "block";
+  document.getElementById("status").textContent = "無法載入圖表";
+  throw new Error("Chart.js failed to load");
+}
 const NORMAL = "#3b82f6", ANOMALY = "#dc2626";
 const points = CONFIG.initial.slice(-CONFIG.windowSize);
 document.getElementById("window").textContent = CONFIG.windowSize;
