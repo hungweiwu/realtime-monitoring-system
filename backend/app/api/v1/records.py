@@ -1,10 +1,17 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.core.deps import CurrentUser, SessionDep, require_role
 from app.models import Record, Role, User
-from app.schemas.record import RecordCreate, RecordPatch, RecordPut, RecordRead
+from app.schemas.common import Page
+from app.schemas.record import (
+    RecordCreate,
+    RecordListParams,
+    RecordPatch,
+    RecordPut,
+    RecordRead,
+)
 from app.services import record_service
 
 router = APIRouter(prefix="/records", tags=["records"])
@@ -15,6 +22,19 @@ Writer = Annotated[User, Depends(require_role(Role.ADMIN, Role.USER))]
 @router.post("", response_model=RecordRead, status_code=status.HTTP_201_CREATED)
 async def create_record(payload: RecordCreate, session: SessionDep, user: Writer) -> Record:
     return await record_service.create(session, payload, actor=user)
+
+
+@router.get("", response_model=Page[RecordRead])
+async def list_records(
+    params: Annotated[RecordListParams, Query()], session: SessionDep, user: CurrentUser
+) -> Page[RecordRead]:
+    items, total = await record_service.list_records(session, params)
+    return Page[RecordRead](
+        items=[RecordRead.model_validate(r) for r in items],
+        total=total,
+        page=params.page,
+        size=params.size,
+    )
 
 
 @router.get("/{record_id}", response_model=RecordRead)

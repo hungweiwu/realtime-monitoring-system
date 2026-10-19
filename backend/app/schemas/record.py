@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
@@ -54,3 +54,31 @@ class RecordRead(BaseModel):
     created_by: int
     created_at: UTCDatetimeOut
     updated_at: UTCDatetimeOut
+
+
+class RecordListParams(BaseModel):
+    # extra="forbid"：拼錯的 query 參數（例如 sortby）直接 422，而不是被默默忽略
+    model_config = ConfigDict(extra="forbid")
+
+    page: int = Field(1, ge=1)
+    size: int = Field(20, ge=1, le=100)
+    category: str | None = None
+    start: AwareDatetime | None = None
+    end: AwareDatetime | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    # 白名單：只允許這些欄位排序，不接受任意欄位名
+    sort_by: Literal["timestamp", "value", "created_at", "title"] = "timestamp"
+    order: Literal["asc", "desc"] = "desc"
+
+    @model_validator(mode="after")
+    def check_ranges(self) -> Self:
+        if self.start and self.end and self.start > self.end:
+            raise ValueError("start must not be after end")
+        if (
+            self.min_value is not None
+            and self.max_value is not None
+            and self.min_value > self.max_value
+        ):
+            raise ValueError("min_value must not be greater than max_value")
+        return self

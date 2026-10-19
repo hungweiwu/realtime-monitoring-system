@@ -112,17 +112,17 @@
 **Files:** `backend/app/schemas/record.py`、`backend/app/services/record_service.py`、`backend/app/api/v1/records.py`、`backend/tests/test_records_crud.py`
 **Scope:** M
 
-### T6：Records 列表（分頁、篩選、排序）
+### ✅ T6：Records 列表（分頁、篩選、排序）
 **Description:** `GET /records` 支援 page、size（1–100）、category、start/end、min/max_value，`sort_by` 用 `Literal` 白名單，回傳 `{items, total, page, size}`。
 
 **Acceptance criteria:**
-- [ ] 各篩選條件可組合使用，total 是篩選後的總筆數
-- [ ] `size=101` 或非法的 `sort_by` 回 422
-- [ ] 排序方向正確，第 2 頁的資料不與第 1 頁重複
-- [ ] `start` / `end` 用 `AwareDatetime`：`start` 不帶時區回 422
+- [x] 各篩選條件可組合使用，total 是篩選後的總筆數
+- [x] `size=101` 或非法的 `sort_by` 回 422
+- [x] 排序方向正確，第 2 頁的資料不與第 1 頁重複
+- [x] `start` / `end` 用 `AwareDatetime`：`start` 不帶時區回 422
 
 **Verification:**
-- [ ] `test_records_list.py` 全綠
+- [x] `test_records_list.py` 全綠
 
 **Dependencies:** T5
 **Files:** `backend/app/schemas/record.py`、`backend/app/services/record_service.py`、`backend/app/api/v1/records.py`、`backend/tests/test_records_list.py`
