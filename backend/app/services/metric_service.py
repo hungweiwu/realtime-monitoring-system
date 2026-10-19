@@ -12,13 +12,16 @@ async def latest(session: AsyncSession, buffer: MetricBuffer, limit: int) -> lis
     順序很重要：
     1. 先取 buffer snapshot（含寫入中的批次），再查 DB。反過來的話，若 flush 在「查完 DB」與
        「取 snapshot」之間 commit，該批資料兩邊都不在，會漏掉一段。
-    2. 查 DB 前先 rollback：驗證使用者時同一個 session 已讀過 DB，InnoDB REPEATABLE READ 的
-       read view 從那時固定，看不到之後才 commit 的批次。rollback 結束這個 transaction，
-       下一個查詢會拿到新的 read view。
+    2. 查 DB 前先 commit：驗證使用者時同一個 session 已讀過 DB，InnoDB REPEATABLE READ 的
+       read view 從那時固定，看不到之後才 commit 的批次。結束這個 transaction，下一個查詢
+       才會拿到新的 read view。
     """
     # 只驗證需要的最後 limit 筆：DB 斷線時 buffer 可能累積上萬筆
     pending = [MetricPointOut.model_validate(p) for p in buffer.snapshot()[-limit:]]
-    await session.rollback()
+    # 用 commit 而非 rollback 結束交易：rollback 一律讓 session 內已載入的物件（驗證時取得的
+    # CurrentUser）過期，之後再存取屬性會觸發 async 環境下不允許的延遲載入；commit 在
+    # expire_on_commit=False 下不會過期物件。此交易只有讀取，commit 不會寫入任何資料
+    await session.commit()
     rows = (
         await session.scalars(select(Metric).order_by(Metric.timestamp.desc()).limit(limit))
     ).all()

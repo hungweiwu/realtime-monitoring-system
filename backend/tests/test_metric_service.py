@@ -39,6 +39,20 @@ async def test_latest_sees_batch_flushed_after_request_session_started(
     assert [p.value for p in points] == [0.0, 1.0]
 
 
+async def test_latest_keeps_objects_loaded_earlier_in_the_request_usable(
+    db_session: AsyncSession,
+) -> None:
+    # CurrentUser 在驗證時載入；結束交易若用 rollback 會讓它過期，之後存取屬性會在 async 下失敗
+    user = await create_user(db_session, "alice")
+    # 模擬 get_current_user 在同一個 session 查過 DB：此時有進行中的交易
+    await db_session.scalar(select(User.id))
+    buffer = MetricBuffer(SessionLocal, batch_size=100, max_size=1000)
+
+    await metric_service.latest(db_session, buffer, limit=10)
+
+    assert user.username == "alice"
+
+
 async def test_latest_merges_unflushed_points_without_duplicates(
     db_session: AsyncSession,
 ) -> None:
