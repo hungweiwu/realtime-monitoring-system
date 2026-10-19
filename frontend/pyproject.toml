@@ -5,6 +5,7 @@ description = "Streamlit frontend for the real-time monitoring system"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "httpx>=0.28.1",
+    "pandas>=3.0.6",
     "streamlit>=1.66.0",
 ]
 
