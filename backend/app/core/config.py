@@ -42,9 +42,10 @@ class Settings(BaseSettings):
     # 單一 WebSocket 連線送一筆資料的逾時，超過視為慢連線並斷開
     ws_send_timeout_seconds: float = 1.0
 
-    # 趨勢分析依此時區切分「分 / 時 / 日」。台灣無日光節約，固定偏移即可，
-    # 且 MariaDB CONVERT_TZ 用數字偏移不需匯入時區資料表
-    analytics_utc_offset: str = "+08:00"
+    # 趨勢分析切分「分 / 時 / 日」與 Excel 匯出時間所用的時區
+    analytics_timezone: str = "Asia/Taipei"
+    # Excel 匯出的 data 工作表列數上限，超過時保留最新的資料
+    export_max_rows: int = 50_000
 
     # 種子帳號：啟動時若不存在就建立，README 列出供審查者測試
     seed_admin_username: str = "admin"

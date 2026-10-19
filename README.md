@@ -47,7 +47,13 @@ Streamlit 每次互動都會重跑整份 script，Python 端無法長期維持�
 ### 資料分析
 - records 與 metrics 共用 `value / category / timestamp` 三欄，四個分析端點以 `source` 參數切換，聚合邏輯只寫一份。
 - 聚合全部用 ORM 表達式：`func.count / sum / avg / max / min` 與 `group_by`。
-- **趨勢依台北時間切分**：資料存 UTC，若直接以 UTC 截斷，「一天」會是台北早上 8 點到隔天 8 點。因此先以 `func.convert_tz(timestamp, '+00:00', '+08:00')` 轉換再以 `func.date_format` 截斷到分／時／日。台灣無日光節約，用數字偏移即可，MariaDB 不需匯入時區資料表。回傳的 `bucket` 仍統一為 UTC，與其他 API 一致。
+- **趨勢依台北時間切分**：資料存 UTC，若直接以 UTC 截斷，「一天」會是台北早上 8 點到隔天 8 點。因此先以 `func.convert_tz(timestamp, '+00:00', '+08:00')` 轉換再以 `func.date_format` 截斷到分／時／日（時區由 `ANALYTICS_TIMEZONE` 設定，換算成數字偏移）。用數字偏移 MariaDB 不需匯入時區資料表；台灣無日光節約，不受偏移固定的影響。回傳的 `bucket` 仍統一為 UTC，與其他 API 一致。
+
+### Excel 匯出
+- 套用與分析 API 相同的篩選；`data` 工作表上限 5 萬列，超過時保留**最新**的資料（依時間倒序取再反轉），`summary` 工作表記錄篩選條件、實際匯出列數與統計，可看出是否被截斷。
+- **防公式注入**：openpyxl 會把 `=` 開頭的字串寫成公式；使用者匯入的 title 若是 `=HYPERLINK(...)`，下載者開檔時就會被執行。所有字串一律強制存成文字。
+- Excel 不支援帶時區的時間，因此換成 `ANALYTICS_TIMEZONE`（預設 Asia/Taipei）後去掉時區，欄位標題註明時區。
+- 使用 openpyxl 的 write-only 模式逐列寫入，不在記憶體保留整份工作表物件。
 
 ### 禁止原生 SQL
 應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。可用下列指令檢查（`send_text(` 這類方法名不會誤判）：

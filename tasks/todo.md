@@ -251,21 +251,23 @@
 **Files:** `backend/app/services/analytics_service.py`、`backend/app/schemas/analytics.py`、`backend/app/api/v1/analytics.py`、`backend/tests/test_analytics.py`
 **Scope:** M
 
-> 實作備註：trend 以 `analytics_utc_offset`（預設 +08:00）經 `convert_tz` 轉換後再分組，bucket 回傳 UTC。禁止原生 SQL 的 grep 改為 `(^|[^A-Za-z0-9_])text\(`，避免 `send_text(` 誤判。
+> 實作備註：trend 以 `analytics_timezone`（預設 Asia/Taipei，換算成數字偏移）經 `convert_tz` 轉換後再分組，bucket 回傳 UTC。禁止原生 SQL 的 grep 改為 `(^|[^A-Za-z0-9_])text\(`，避免 `send_text(` 誤判。
 
-### T13：Excel 匯出
+### ✅ T13：Excel 匯出
 **Description:** `GET /analytics/export` 套用與分析相同的篩選條件，用 openpyxl 產生 `data` 工作表（上限 50,000 列）和 `summary` 工作表，以 StreamingResponse 下載。
 
 **Acceptance criteria:**
-- [ ] 下載的 `.xlsx` 可用 openpyxl 讀回，兩張工作表內容正確
-- [ ] 篩選條件生效；回應帶有正確的 Content-Disposition 檔名
+- [x] 下載的 `.xlsx` 可用 openpyxl 讀回，兩張工作表內容正確
+- [x] 篩選條件生效；回應帶有正確的 Content-Disposition 檔名
 
 **Verification:**
-- [ ] `test_export.py` 全綠
+- [x] `test_export.py` 全綠
 
 **Dependencies:** T12
 **Files:** `backend/app/services/export_service.py`、`backend/app/api/v1/analytics.py`、`backend/tests/test_export.py`
 **Scope:** S
+
+> 實作備註：時間換成 Asia/Taipei（Excel 不支援時區）、字串強制為文字防公式注入、超過上限保留最新資料。時區設定由 `ANALYTICS_UTC_OFFSET` 改為 `ANALYTICS_TIMEZONE`（IANA 名稱），偏移由名稱換算。
 
 ### T14：前端 Records 頁與分析頁
 **Description:**

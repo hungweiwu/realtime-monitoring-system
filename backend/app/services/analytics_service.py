@@ -3,7 +3,8 @@
 全部以 ORM 表達式（func.count / avg / max / min、group_by）組成，不寫 SQL 字串。
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +29,7 @@ BUCKET_FORMATS = {
 }
 
 
-def _conditions(model: type[Record] | type[Metric], params: AnalyticsParams) -> list:
+def conditions(model: type[Record] | type[Metric], params: AnalyticsParams) -> list:
     conditions: list[ColumnElement[bool]] = []
     if params.category is not None:
         conditions.append(model.category == params.category)
@@ -39,10 +40,20 @@ def _conditions(model: type[Record] | type[Metric], params: AnalyticsParams) -> 
     return conditions
 
 
-def _parse_offset(offset: str) -> timezone:
-    sign = -1 if offset.startswith("-") else 1
-    hours, minutes = offset.lstrip("+-").split(":")
-    return timezone(sign * timedelta(hours=int(hours), minutes=int(minutes)))
+def analytics_timezone() -> ZoneInfo:
+    return ZoneInfo(get_settings().analytics_timezone)
+
+
+def _utc_offset(tz: ZoneInfo) -> str:
+    """把時區換成 CONVERT_TZ 用的數字偏移（例如 +08:00）。
+
+    用數字偏移 MariaDB 不需匯入時區資料表；代價是有日光節約的時區在切換前後的分組會差一小時，
+    台北沒有日光節約，不受影響。
+    """
+    offset = datetime.now(tz).utcoffset()
+    minutes = int(offset.total_seconds() // 60) if offset else 0
+    sign = "-" if minutes < 0 else "+"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
 
 
 async def summary(session: AsyncSession, params: AnalyticsParams) -> Summary:
@@ -53,7 +64,7 @@ async def summary(session: AsyncSession, params: AnalyticsParams) -> Summary:
         func.avg(model.value),
         func.max(model.value),
         func.min(model.value),
-    ).where(*_conditions(model, params))
+    ).where(*conditions(model, params))
     count, total, avg, max_, min_ = (await session.execute(stmt)).one()
     return Summary(count=count, sum=total, avg=avg, max=max_, min=min_)
 
@@ -68,7 +79,7 @@ async def by_category(session: AsyncSession, params: AnalyticsParams) -> list[Ca
             func.max(model.value),
             func.min(model.value),
         )
-        .where(*_conditions(model, params))
+        .where(*conditions(model, params))
         .group_by(model.category)
         .order_by(model.category)
     )
@@ -81,9 +92,9 @@ async def by_category(session: AsyncSession, params: AnalyticsParams) -> list[Ca
 
 async def trend(session: AsyncSession, params: TrendParams) -> list[TrendPoint]:
     model = MODELS[params.source]
-    offset = get_settings().analytics_utc_offset
+    tz = analytics_timezone()
     # DB 存 UTC；先轉成分析時區再截斷，「一天」才是台北的 00:00–24:00 而非 UTC 的
-    local_ts = func.convert_tz(model.timestamp, "+00:00", offset)
+    local_ts = func.convert_tz(model.timestamp, "+00:00", _utc_offset(tz))
     bucket = func.date_format(local_ts, BUCKET_FORMATS[params.interval]).label("bucket")
     stmt = (
         select(
@@ -93,12 +104,11 @@ async def trend(session: AsyncSession, params: TrendParams) -> list[TrendPoint]:
             func.max(model.value),
             func.min(model.value),
         )
-        .where(*_conditions(model, params))
+        .where(*conditions(model, params))
         .group_by(bucket)
         .order_by(bucket)
     )
     rows = (await session.execute(stmt)).all()
-    tz = _parse_offset(offset)
     return [
         TrendPoint(
             bucket=datetime.strptime(b, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz).astimezone(UTC),
