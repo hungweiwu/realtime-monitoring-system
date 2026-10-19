@@ -40,7 +40,7 @@
 
 **Verification:**
 - [x] `docker compose exec db mariadb -u... -e "SHOW INDEX FROM metrics"`（人工檢查用，不在程式碼內）
-- [ ] `UTCDateTime` 的單元測試（T3 測試基礎完成後補跑；目前已在容器內手動驗證）
+- [x] `UTCDateTime` 的單元測試（T3 已補：`tests/test_types.py`）
 
 **Dependencies:** T1
 **Files:** `backend/app/db/base.py`、`backend/app/db/types.py`、`backend/app/models/*.py`、`backend/migrations/{env.py,versions/0001_init.py}`、`backend/alembic.ini`
@@ -48,16 +48,16 @@
 
 > 實作備註：autogenerate 的 downgrade 會先刪 FK 依附的索引，MariaDB 拒絕（error 1553），已改為直接依子表→父表順序 drop table。
 
-### T3：統一錯誤處理、日誌、測試基礎設施
+### ✅ T3：統一錯誤處理、日誌、測試基礎設施
 **Description:** 建立 `AppError` 階層與四個 exception handler（AppError、HTTPException、RequestValidationError、500）；設定 stdlib logging 輸出到 stdout；在 compose 加 `db-test` 與 `api-test`（Dockerfile 的 `test` stage），寫好 conftest（create_all、每個測試後清表、`ENABLE_GENERATOR=false`、AsyncClient fixture）。
 
 **Acceptance criteria:**
-- [ ] 404、422、500 的回應都是 `{"error": {"code", "message", "details"}}`，500 不洩漏 stack trace
-- [ ] `docker compose --profile test run --rm api-test` 能執行並通過錯誤格式測試與 `UTCDateTime` 測試
-- [ ] 測試結束後 `db-test` 不留資料（tmpfs）
+- [x] 404、422、500 的回應都是 `{"error": {"code", "message", "details"}}`，500 不洩漏 stack trace
+- [x] `docker compose --profile test run --rm api-test` 能執行並通過錯誤格式測試與 `UTCDateTime` 測試
+- [x] 測試結束後 `db-test` 不留資料（tmpfs）
 
 **Verification:**
-- [ ] `docker compose --profile test run --rm api-test`
+- [x] `docker compose --profile test run --rm api-test`
 
 **Dependencies:** T2
 **Files:** `backend/app/core/{exceptions.py,logging.py}`、`backend/app/main.py`、`backend/tests/{conftest.py,test_errors.py,test_types.py}`、`backend/Dockerfile`、`docker-compose.yml`

@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_recycle_seconds: int = 1800
+    # 測試時改用 NullPool：pytest-asyncio 每個測試各有 event loop，
+    # 池中連線會綁在舊 loop 上而出錯
+    db_use_null_pool: bool = False
+
+    log_level: str = "INFO"
 
     @property
     def database_url(self) -> URL:

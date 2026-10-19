@@ -33,6 +33,7 @@ services:
       <<: *db-env
       DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
       DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:
@@ -45,6 +46,45 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    networks:
+      - backend
+
+  # --- 測試專用（docker compose --profile test run --rm api-test）---
+  db-test:
+    image: mariadb:11.7
+    profiles: [test]
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: monitor_test
+      MARIADB_USER: monitor
+      MARIADB_PASSWORD: monitorpass
+    # 資料放記憶體，測試結束即消失
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    networks:
+      - backend
+
+  api-test:
+    build:
+      context: ./backend
+      target: test
+    profiles: [test]
+    environment:
+      DB_HOST: db-test
+      DB_PORT: 3306
+      DB_USER: monitor
+      DB_PASSWORD: monitorpass
+      DB_NAME: monitor_test
+      DB_USE_NULL_POOL: "true"
+      ENABLE_GENERATOR: "false"
+    depends_on:
+      db-test:
+        condition: service_healthy
     networks:
       - backend
 

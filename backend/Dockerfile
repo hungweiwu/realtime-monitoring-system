@@ -12,6 +12,14 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+# 測試用：在 builder 之上補裝 dev 依賴，只給 compose 的 api-test 服務使用
+FROM builder AS test
+RUN uv sync --frozen
+COPY . .
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+CMD ["pytest", "-q"]
+
 FROM python:3.12-slim AS runtime
 RUN useradd --create-home --uid 1000 app
 WORKDIR /app

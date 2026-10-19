@@ -6,8 +6,12 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import literal, select
 
+from app.core.config import get_settings
+from app.core.exceptions import register_exception_handlers
+from app.core.logging import setup_logging
 from app.db.session import engine
 
+setup_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
 
 
@@ -18,6 +22,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Real-time Monitoring API", version="0.1.0", lifespan=lifespan)
+register_exception_handlers(app)
 
 
 @app.get("/health", tags=["health"])
