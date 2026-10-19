@@ -21,6 +21,18 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    jwt_secret_key: str = "dev-only-change-me-in-production-0123456789"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
+    # 種子帳號：啟動時若不存在就建立，README 列出供審查者測試
+    seed_admin_username: str = "admin"
+    seed_admin_password: str = "admin12345"
+    seed_user_username: str = "user"
+    seed_user_password: str = "user12345"
+    seed_viewer_username: str = "viewer"
+    seed_viewer_password: str = "viewer12345"
+
     @property
     def database_url(self) -> URL:
         # URL.create 會處理密碼中的特殊字元，字串拼接遇到 @ 或 / 會壞掉

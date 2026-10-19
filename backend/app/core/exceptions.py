@@ -25,6 +25,7 @@ _HTTP_STATUS_CODES = {
 class AppError(Exception):
     status_code = 400
     code = "bad_request"
+    headers: dict[str, str] | None = None
 
     def __init__(self, message: str, details: Any = None) -> None:
         super().__init__(message)
@@ -38,6 +39,12 @@ class NotFoundError(AppError):
 
     def __init__(self, resource: str, identifier: object) -> None:
         super().__init__(f"{resource} {identifier} not found")
+
+
+class AuthenticationError(AppError):
+    status_code = 401
+    code = "unauthorized"
+    headers = {"WWW-Authenticate": "Bearer"}
 
 
 class PermissionDeniedError(AppError):
@@ -65,7 +72,7 @@ def error_response(
 
 
 async def _handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-    return error_response(exc.status_code, exc.code, exc.message, exc.details)
+    return error_response(exc.status_code, exc.code, exc.message, exc.details, exc.headers)
 
 
 async def _handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:

@@ -239,6 +239,7 @@ grep -rnE "text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests
 - 分層：router 只做參數解析與回應組裝 → service 做業務邏輯與權限 → ORM model。router 不直接寫查詢
 - 錯誤一律 raise `AppError` 子類（`NotFoundError`、`PermissionDeniedError`、`ConflictError`），由全域 handler 轉成統一格式
 - 註解只寫「為什麼」，不寫「做什麼」
+- FastAPI 依賴一律用 `Annotated[T, Depends(...)]`（官方建議寫法；也避免 ruff B008 對參數預設值呼叫函式的警告），常用的定義成別名：`SessionDep`、`CurrentUser`
 
 ```python
 # api/v1/records.py
@@ -246,8 +247,8 @@ grep -rnE "text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests
 async def patch_record(
     record_id: int,
     payload: RecordPatch,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(require_role(Role.ADMIN, Role.USER)),
+    session: SessionDep,
+    user: Annotated[User, Depends(require_role(Role.ADMIN, Role.USER))],
 ) -> Record:
     return await record_service.update(session, record_id, payload, actor=user)
 

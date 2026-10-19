@@ -63,7 +63,7 @@
 **Files:** `backend/app/core/{exceptions.py,logging.py}`、`backend/app/main.py`、`backend/tests/{conftest.py,test_errors.py,test_types.py}`、`backend/Dockerfile`、`docker-compose.yml`
 **Scope:** M
 
-### T4：認證、角色權限與種子帳號
+### ✅ T4：認證、角色權限與種子帳號
 **Description:**
 - 密碼雜湊用 pwdlib argon2；JWT（PyJWT）只放 `sub` 和 `exp`
 - `get_current_user` 每次從 DB 讀角色與狀態；`require_role(*roles)` dependency
@@ -72,17 +72,19 @@
 - `app/seed.py` 冪等建立三個種子帳號
 
 **Acceptance criteria:**
-- [ ] 註冊成功；重複帳號回 409；帶 `role=admin` 回 422 且不建立帳號
-- [ ] 登入取得 token；錯誤密碼 401；停用帳號 401；Swagger Authorize 可用
-- [ ] 三個種子帳號可登入；重啟 api 不會重複建立帳號
+- [x] 註冊成功；重複帳號回 409；帶 `role=admin` 回 422 且不建立帳號
+- [x] 登入取得 token；錯誤密碼 401；停用帳號 401；Swagger Authorize 可用
+- [x] 三個種子帳號可登入；重啟 api 不會重複建立帳號
 
 **Verification:**
-- [ ] `test_auth.py` 涵蓋上述情境，pytest 全綠
-- [ ] Swagger 手動 Authorize，接著呼叫 `/users/me`
+- [x] `test_auth.py` 涵蓋上述情境，pytest 全綠
+- [x] Swagger 手動 Authorize，接著呼叫 `/users/me`
 
 **Dependencies:** T3
 **Files:** `backend/app/core/{security.py,deps.py}`、`backend/app/api/v1/{auth.py,users.py}`、`backend/app/schemas/user.py`、`backend/app/services/{user_service.py,log_service.py}`、`backend/app/seed.py`、`backend/tests/test_auth.py`
 **Scope:** M（接近 L；若超時，把 seed 拆成獨立小任務）
+
+> 實作備註：Swagger 的 OAuth2 password flow 已出現在 openapi.json（tokenUrl=/api/v1/auth/login），並用 curl 送 form 登入驗證過；瀏覽器上的 Authorize 按鈕尚未手動點過。
 
 ### ✅ Checkpoint 1（10/19 結束前）
 - [ ] `docker compose down -v && docker compose up --build` 一次起得來
