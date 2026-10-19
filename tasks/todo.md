@@ -210,20 +210,22 @@
 
 > 實作備註：登入／登出／密碼錯誤／token 失效導回登入頁以 Streamlit `AppTest` 在 frontend 容器內對真實後端驗證；選單依角色顯示以瀏覽器確認（user 三項、admin 四項）。另加了註冊分頁（5.1 的註冊 API 前端入口）。
 
-### T11：即時監控頁（方案 A，2h 時限）
+### ✅ T11：即時監控頁（方案 A，2h 時限）
 **Description:** `views/monitor.py` 用 `components.html` 嵌入 JS：先用 `/metrics/latest` 的資料畫初始圖，再以 `PUBLIC_WS_URL` 加 token 連線，Chart.js 畫折線圖（異常點變色）和各 category 的柱狀圖，異常時顯示告警橫幅。**開始時記下時間，超過 2h 先停下來問你，再退回方案 B**（`st.fragment(run_every="1s")` 拉 `/metrics/latest`）。
 
 **Acceptance criteria:**
-- [ ] 登入後即時頁的折線圖每秒更新，視窗保留最近 60 點
-- [ ] 異常點用不同顏色，並出現告警
-- [ ] 柱狀圖顯示各 category 的計數
+- [x] 登入後即時頁的折線圖每秒更新，視窗保留最近 60 點
+- [x] 異常點用不同顏色，並出現告警
+- [x] 柱狀圖顯示各 category 的計數
 
 **Verification:**
-- [ ] 手動觀察 1 分鐘；把閾值調低以確認告警會出現
+- [x] 手動觀察 1 分鐘；把閾值調低以確認告警會出現
 
 **Dependencies:** T9、T10
 **Files:** `frontend/views/monitor.py`、`frontend/utils/config.py`、`docker-compose.yml`
 **Scope:** S
+
+> 實作備註：18:47 開始、約 1 小時內完成，未觸發退回方案 B。`components.v1.html` 在 Streamlit 1.66 已棄用，改用 `st.iframe`（HTML 字串走 srcdoc）。瀏覽器驗證：每秒更新、異常紅點與告警（以 METRIC_ANOMALY_HIGH=60 重啟確認）、API 重建後自動重連、帳號停用後收到 1008 顯示重新登入且不重連。
 
 ### ✅ Checkpoint 3（10/20 18:00）
 - [ ] 前端即時圖正常，`metrics` 批次寫入的 log 正常，restart 時有關機 flush

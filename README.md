@@ -36,6 +36,14 @@ MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀�
 - 廣播以 `asyncio.gather` 並行送出，每條連線設 1 秒逾時；逾時或出錯的連線直接移除。若逐一 `await`，一條慢連線會拖住產生器，所有人的資料都延遲。
 - `GET /api/v1/metrics/latest` 合併 DB 與 buffer 中尚未寫入（含寫入中）的資料，前端初次載入或 polling 時不會漏掉最近幾秒。
 
+### Streamlit 如何接即時資料
+Streamlit 每次互動都會重跑整份 script，Python 端無法長期維持一條 WebSocket 連線。因此即時監控頁用 `st.iframe` 嵌入一段 HTML／JS，由**瀏覽器**直接連 WebSocket 並以 Chart.js 畫圖，是真正的 push 而非 polling。
+- **兩個位址**：Streamlit 的 Python 端在容器內呼叫後端用 `API_BASE_URL=http://api:8000`；iframe 的 JS 在使用者瀏覽器執行，用 `PUBLIC_WS_URL=ws://localhost:8000`。
+- **初始資料由 Python 端抓好注入**：iframe 內的 JS 若直接 fetch 後端會被 CORS 擋，所以由 Python 端先呼叫 `/api/v1/metrics/latest` 取最近 60 筆，連同 token 以 `json.dumps` 注入（並轉義 `</`），不用字串拼接。
+- **頁面不放會觸發重跑的元件**：重跑會重建 iframe，WebSocket 重連、圖表重畫。
+- **斷線處理**：收到 close code 1008（token 無效、過期、帳號停用）顯示「請重新登入」且不重連；其他原因（例如 API 重啟）以 1、2、4… 秒漸增間隔自動重連，最長 30 秒。
+- **Chart.js 從 CDN（cdnjs）載入**：瀏覽器需能連外網；離線環境需改為把 `chart.umd.min.js` 放進專案由 Streamlit 提供。
+
 ### 禁止原生 SQL
 應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。
 
@@ -48,5 +56,6 @@ MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀�
 
 - **即時資料在記憶體中最多停留一個 flush 間隔**：程序被強制終止（`kill -9`、OOM）時，buffer 中尚未寫入的資料（最多約 5 秒）會遺失；正常 `docker stop` 會執行關機 flush；但若關機時 DB 正好斷線，關機 flush 會卡在連線重試，可能超過 Docker 預設 10 秒寬限期而被 SIGKILL，遺失範圍與強制終止相同。正式環境若不能遺失，應改寫入持久化的訊息佇列（如 Kafka / Redis Streams）再由消費者寫入 DB。
 - **列表採 offset 分頁**：頁數很深時 DB 仍需掃過前面所有列（`OFFSET 100000` 很慢）；資料持續新增時，翻頁之間插入的新資料會讓後面的頁出現重複或遺漏。正式環境可改用 keyset（cursor）分頁：以上一頁最後一筆的 `(timestamp, id)` 作為下一頁的起點。
+- **即時頁重連期間的資料不會補回**：API 重啟或網路中斷時，重連前的那幾秒在圖上是空白（資料仍有寫入 DB，可從系統管理的歷史查詢看到）。
 - **WebSocket 只在握手時驗證 token**：連線建立後，即使 token 過期或帳號被 Admin 停用，仍會持續收到資料，與 REST「停用立即生效」不一致。正式環境可在 token 的 `exp` 到期時由伺服器主動關閉連線，或定期重查 `is_active` 並關閉已停用帳號的連線。
 - **匯入的 5 MB 上限只在應用層檢查**：Starlette 在 handler 執行前就已收完整個上傳（大檔暫存到磁碟），`read(上限 + 1)` 只是避免把超出部分讀進 Python 記憶體，無法限制頻寬與磁碟用量。正式環境應在反向代理（例如 Nginx `client_max_body_size`）或依 `Content-Length` 提前拒絕。

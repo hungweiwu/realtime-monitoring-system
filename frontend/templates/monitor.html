@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --fg: #31333f; --muted: #6b7280; --card: #f0f2f6; --ok: #16a34a; --warn: #d97706; --bad: #dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #fafafa; --muted: #9ca3af; --card: #262730; }
+  }
+  body { margin: 0; font-family: "Source Sans Pro", system-ui, sans-serif; color: var(--fg); background: transparent; }
+  .bar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  #alert { display: none; padding: 10px 14px; border-radius: 8px; background: rgba(220, 38, 38, .15);
+           border: 1px solid var(--bad); color: var(--bad); margin-bottom: 10px; font-weight: 600; }
+  #auth { display: none; padding: 10px 14px; border-radius: 8px; background: rgba(217, 119, 6, .15);
+          border: 1px solid var(--warn); color: var(--warn); margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .card { background: var(--card); border-radius: 8px; padding: 12px; }
+  .card h3 { margin: 0 0 8px; font-size: 15px; }
+  /* 固定高度容器 + maintainAspectRatio:false：否則 Chart.js 依寬高比放大，超出 iframe 被截斷 */
+  .chart { position: relative; height: 300px; }
+  #recent { font-size: 13px; color: var(--muted); margin: 8px 0 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span><span id="status-dot" class="dot"></span><span id="status">連線中…</span></span>
+  <span style="color: var(--muted)">最近 <span id="window"></span> 筆 · 異常 <span id="anomaly-count">0</span> 筆</span>
+</div>
+<div id="auth">登入已失效，請點左側「登出」後重新登入。</div>
+<div id="alert"></div>
+<div class="grid">
+  <div class="card"><h3>即時數值</h3><div class="chart"><canvas id="line"></canvas></div></div>
+  <div class="card"><h3>各分類筆數（紅色為異常）</h3><div class="chart"><canvas id="bar"></canvas></div>
+    <ul id="recent"></ul></div>
+</div>
+<script>
+// 由 Python 端以 json.dumps 注入：{ wsUrl, token, initial: [...], windowSize }
+const CONFIG = __CONFIG__;
+const NORMAL = "#3b82f6", ANOMALY = "#dc2626";
+const points = CONFIG.initial.slice(-CONFIG.windowSize);
+document.getElementById("window").textContent = CONFIG.windowSize;
+
+const timeLabel = (iso) => new Date(iso).toLocaleTimeString("zh-TW", { hour12: false });
+const fg = getComputedStyle(document.documentElement).getPropertyValue("--fg");
+Chart.defaults.color = fg;
+Chart.defaults.animation = false;
+Chart.defaults.maintainAspectRatio = false;
+
+const lineChart = new Chart(document.getElementById("line"), {
+  type: "line",
+  data: { labels: [], datasets: [{ label: "value", data: [], borderColor: NORMAL, borderWidth: 1.5,
+          pointRadius: [], pointBackgroundColor: [], tension: 0.2 }] },
+  options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 8 } } } },
+});
+const barChart = new Chart(document.getElementById("bar"), {
+  type: "bar",
+  data: { labels: [], datasets: [
+    { label: "正常", data: [], backgroundColor: NORMAL, stack: "s" },
+    { label: "異常", data: [], backgroundColor: ANOMALY, stack: "s" },
+  ] },
+  options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } },
+});
+
+function render() {
+  const ds = lineChart.data.datasets[0];
+  lineChart.data.labels = points.map((p) => timeLabel(p.timestamp));
+  ds.data = points.map((p) => p.value);
+  // 異常點放大並標紅
+  ds.pointRadius = points.map((p) => (p.is_anomaly ? 5 : 1.5));
+  ds.pointBackgroundColor = points.map((p) => (p.is_anomaly ? ANOMALY : NORMAL));
+  lineChart.update();
+
+  const categories = [...new Set(points.map((p) => p.category))].sort();
+  barChart.data.labels = categories;
+  barChart.data.datasets[0].data = categories.map(
+    (c) => points.filter((p) => p.category === c && !p.is_anomaly).length);
+  barChart.data.datasets[1].data = categories.map(
+    (c) => points.filter((p) => p.category === c && p.is_anomaly).length);
+  barChart.update();
+
+  const anomalies = points.filter((p) => p.is_anomaly);
+  document.getElementById("anomaly-count").textContent = anomalies.length;
+  const recent = document.getElementById("recent");
+  recent.replaceChildren(...anomalies.slice(-5).reverse().map((p) => {
+    const li = document.createElement("li");
+    li.textContent = `${timeLabel(p.timestamp)} ${p.category} = ${p.value}`;
+    return li;
+  }));
+}
+
+function showAlert(p) {
+  const el = document.getElementById("alert");
+  // textContent 而非 innerHTML：資料不當作 HTML 解析
+  el.textContent = `⚠ 異常告警：${timeLabel(p.timestamp)} ${p.category} = ${p.value}`;
+  el.style.display = "block";
+  clearTimeout(showAlert.timer);
+  showAlert.timer = setTimeout(() => { el.style.display = "none"; }, 8000);
+}
+
+function setStatus(text, color) {
+  document.getElementById("status").textContent = text;
+  document.getElementById("status-dot").style.background = color;
+}
+
+let retryDelay = 1000;
+function connect() {
+  const ws = new WebSocket(`${CONFIG.wsUrl}/api/v1/ws/metrics?token=${encodeURIComponent(CONFIG.token)}`);
+  ws.onopen = () => { retryDelay = 1000; setStatus("即時連線中", "var(--ok)"); };
+  ws.onmessage = (event) => {
+    const p = JSON.parse(event.data);
+    points.push(p);
+    if (points.length > CONFIG.windowSize) points.shift();
+    render();
+    if (p.is_anomaly) showAlert(p);
+  };
+  ws.onclose = (event) => {
+    if (event.code === 1008) {
+      // token 無效、過期或帳號停用：重連也沒用，請使用者重新登入
+      setStatus("已中斷", "var(--bad)");
+      document.getElementById("auth").style.display = "block";
+      return;
+    }
+    // 其他原因（例如 API 重啟）：漸增間隔自動重連，最長 30 秒
+    setStatus(`連線中斷，${Math.round(retryDelay / 1000)} 秒後重連…`, "var(--warn)");
+    setTimeout(connect, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 30000);
+  };
+}
+
+render();
+connect();
+</script>
+</body>
+</html>

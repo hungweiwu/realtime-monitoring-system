@@ -18,6 +18,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY app.py ./
 COPY utils ./utils
 COPY views ./views
+COPY templates ./templates
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 USER app
