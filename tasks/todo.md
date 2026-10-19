@@ -128,17 +128,17 @@
 **Files:** `backend/app/schemas/record.py`、`backend/app/services/record_service.py`、`backend/app/api/v1/records.py`、`backend/tests/test_records_list.py`
 **Scope:** S
 
-### T7：CSV / JSON 批量匯入
+### ✅ T7：CSV / JSON 批量匯入
 **Description:** `POST /records/import` 依副檔名解析，逐列用 Pydantic 驗證；不帶時區的時間視為 Asia/Taipei 再轉 UTC。合格列以單一 transaction `add_all` 寫入，回傳成功筆數、失敗筆數與錯誤列。上限 5 MB 或 1 萬列，超過回 413。另建立 `sample_data/records.csv` 與 `records.json`。
 
 **Acceptance criteria:**
-- [ ] 混合好壞列的 CSV：好的寫入，壞的回報列號與原因
-- [ ] 不帶時區的 `2026-10-20 08:00:00` 存成 `00:00:00Z`
-- [ ] viewer 匯入回 403；超過上限回 413；不支援的副檔名回 422
+- [x] 混合好壞列的 CSV：好的寫入，壞的回報列號與原因
+- [x] 不帶時區的 `2026-10-20 08:00:00` 存成 `00:00:00Z`
+- [x] viewer 匯入回 403；超過上限回 413；不支援的副檔名回 422
 
 **Verification:**
-- [ ] `test_records_import.py` 全綠
-- [ ] Swagger 上傳 `sample_data/records.csv` 成功
+- [x] `test_records_import.py` 全綠
+- [x] Swagger 上傳 `sample_data/records.csv` 成功
 
 **Dependencies:** T5
 **Files:** `backend/app/services/import_service.py`、`backend/app/api/v1/records.py`、`backend/tests/test_records_import.py`、`sample_data/records.{csv,json}`

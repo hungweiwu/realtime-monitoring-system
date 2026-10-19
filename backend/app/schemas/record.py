@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
@@ -82,3 +83,26 @@ class RecordListParams(BaseModel):
         ):
             raise ValueError("min_value must not be greater than max_value")
         return self
+
+
+class RecordImportRow(BaseModel):
+    """匯入檔案的單列。與 RecordCreate 不同：允許沒帶時區的時間（由 import_service 補時區），
+    並忽略多餘欄位（使用者匯出的檔案常帶 id 等欄位）。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    title: Title
+    value: FiniteFloat
+    category: Category
+    timestamp: datetime
+
+
+class ImportRowError(BaseModel):
+    row: int
+    message: str
+
+
+class ImportResult(BaseModel):
+    success_count: int
+    failed_count: int
+    errors: list[ImportRowError]

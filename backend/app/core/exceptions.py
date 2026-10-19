@@ -57,6 +57,18 @@ class ConflictError(AppError):
     code = "conflict"
 
 
+class PayloadTooLargeError(AppError):
+    status_code = 413
+    code = "payload_too_large"
+
+
+class UnprocessableError(AppError):
+    """請求格式正確但內容無法處理，例如上傳檔案格式錯誤。"""
+
+    status_code = 422
+    code = "validation_error"
+
+
 def error_response(
     status_code: int,
     code: str,

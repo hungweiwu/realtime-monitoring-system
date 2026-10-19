@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    import_max_bytes: int = 5 * 1024 * 1024
+    import_max_rows: int = 10_000
+    # 匯入資料的時間若沒帶時區，視為此時區
+    import_default_timezone: str = "Asia/Taipei"
+
     # 種子帳號：啟動時若不存在就建立，README 列出供審查者測試
     seed_admin_username: str = "admin"
     seed_admin_password: str = "admin12345"
