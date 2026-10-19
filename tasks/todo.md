@@ -279,6 +279,8 @@
 **Verification:**
 - [ ] 用 user 和 viewer 兩種角色手動走過一次
 
+- [ ] 所有時間顯示一律轉 Asia/Taipei（API 回傳 UTC；trend 的 bucket 例如台北 10/20 是 `2026-10-19T16:00:00Z`，直接畫會讓人以為分組錯了），欄位標題註明時區
+
 **Dependencies:** T6、T7、T10、T13
 **Files:** `frontend/views/{records.py,analytics.py}`、`frontend/utils/api.py`
 **Scope:** M

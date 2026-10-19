@@ -42,7 +42,9 @@ const NORMAL = "#3b82f6", ANOMALY = "#dc2626";
 const points = CONFIG.initial.slice(-CONFIG.windowSize);
 document.getElementById("window").textContent = CONFIG.windowSize;
 
-const timeLabel = (iso) => new Date(iso).toLocaleTimeString("zh-TW", { hour12: false });
+// 明確指定台北時區：只給語系的話會用瀏覽器所在時區
+const timeLabel = (iso) =>
+  new Date(iso).toLocaleTimeString("zh-TW", { hour12: false, timeZone: "Asia/Taipei" });
 const fg = getComputedStyle(document.documentElement).getPropertyValue("--fg");
 Chart.defaults.color = fg;
 Chart.defaults.animation = false;
