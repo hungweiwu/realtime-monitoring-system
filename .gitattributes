@@ -1,0 +1,8 @@
+# 一律以 LF checkout：Windows 的 core.autocrlf=true 會把 entrypoint.sh 轉成 CRLF，
+# shebang 變成 "#!/bin/sh\r"，api 容器啟動時 exec 失敗
+* text=auto eol=lf
+*.sh text eol=lf
+
+# 二進位檔不做換行轉換
+*.png binary
+*.xlsx binary
