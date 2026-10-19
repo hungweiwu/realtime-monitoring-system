@@ -1,0 +1,24 @@
+[project]
+name = "monitor-frontend"
+version = "0.1.0"
+description = "Streamlit frontend for the real-time monitoring system"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "streamlit>=1.66.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.1",
+]

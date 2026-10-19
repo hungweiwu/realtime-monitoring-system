@@ -193,20 +193,22 @@
 
 > 實作備註：uvicorn 的 WebSocket 握手 log 在 `uvicorn.error` 而非 access log，改為兩個 logger 都遮蔽 token。TestClient 測試曾因「accept 後、註冊進 manager 前就廣播」的時序問題卡住，測試改為先等註冊完成；test stage CMD 加 300 秒逾時。
 
-### T10：Streamlit 骨架（登入、登出、依角色 navigation）
+### ✅ T10：Streamlit 骨架（登入、登出、依角色 navigation）
 **Description:** frontend uv 專案、多階段 Dockerfile，compose 加入 frontend（依賴 api healthy）。`utils/api.py`（httpx，`API_BASE_URL`，401 時清 session）、`utils/auth.py`，`app.py` 用 `st.navigation` 依登入狀態與角色組出頁面；先放 login 頁與空白功能頁。
 
 **Acceptance criteria:**
-- [ ] `docker compose up` 後打開 localhost:8501 可登入、登出
-- [ ] 非 admin 的選單看不到「系統管理」
-- [ ] token 過期或無效時自動回到登入頁
+- [x] `docker compose up` 後打開 localhost:8501 可登入、登出
+- [x] 非 admin 的選單看不到「系統管理」
+- [x] token 過期或無效時自動回到登入頁
 
 **Verification:**
-- [ ] 手動用三種角色登入，比對選單
+- [x] 手動用三種角色登入，比對選單
 
 **Dependencies:** T4
 **Files:** `frontend/{app.py,pyproject.toml,Dockerfile}`、`frontend/utils/{api.py,auth.py}`、`frontend/views/login.py`、`docker-compose.yml`
 **Scope:** M
+
+> 實作備註：登入／登出／密碼錯誤／token 失效導回登入頁以 Streamlit `AppTest` 在 frontend 容器內對真實後端驗證；選單依角色顯示以瀏覽器確認（user 三項、admin 四項）。另加了註冊分頁（5.1 的註冊 API 前端入口）。
 
 ### T11：即時監控頁（方案 A，2h 時限）
 **Description:** `views/monitor.py` 用 `components.html` 嵌入 JS：先用 `/metrics/latest` 的資料畫初始圖，再以 `PUBLIC_WS_URL` 加 token 連線，Chart.js 畫折線圖（異常點變色）和各 category 的柱狀圖，異常時顯示告警橫幅。**開始時記下時間，超過 2h 先停下來問你，再退回方案 B**（`st.fragment(run_every="1s")` 拉 `/metrics/latest`）。
