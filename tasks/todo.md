@@ -297,20 +297,22 @@
 
 ## Phase 5：Admin 與交付（10/21）
 
-### T15：Admin API
+### ✅ T15：Admin API
 **Description:** `/admin/users`（分頁）、`PATCH /admin/users/{id}`（修改 role、is_active，不能改自己，寫 log）、`/admin/logs`（依 level、action、時間篩選並分頁）、`/admin/db-status`（`select(literal(1))`、`engine.pool` 狀態、各表 `func.count()`、buffer 待寫筆數）、`/admin/metrics`（時間範圍加 `anomaly_only`）。
 
 **Acceptance criteria:**
-- [ ] 非 admin 呼叫任何 admin 端點回 403；admin 改自己回 403 或 409
-- [ ] 停用某個帳號後，該帳號手上的舊 token 立刻變成 401
-- [ ] db-status 回傳連線、pool、各表筆數、buffer 筆數
+- [x] 非 admin 呼叫任何 admin 端點回 403；admin 改自己回 403 或 409
+- [x] 停用某個帳號後，該帳號手上的舊 token 立刻變成 401
+- [x] db-status 回傳連線、pool、各表筆數、buffer 筆數
 
 **Verification:**
-- [ ] `test_admin.py` 全綠
+- [x] `test_admin.py` 全綠
 
 **Dependencies:** T8
 **Files:** `backend/app/services/admin_service.py`、`backend/app/schemas/admin.py`、`backend/app/api/v1/admin.py`、`backend/tests/test_admin.py`
 **Scope:** M
+
+> 實作備註：admin router 掛 router 層級的 `require_admin` dependency，新增端點不會漏檢查。Admin 改自己回 403。pool 狀態回報 `overflow_in_use`（SQLAlchemy `overflow()` 未用滿時為負數，容易誤讀）。
 
 ### T16：前端系統管理頁
 **Description:** `views/admin.py` 分四個 tab：使用者管理（改角色、停用）、系統日誌、DB 狀態、metrics 歷史。
