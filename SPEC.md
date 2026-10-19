@@ -77,7 +77,7 @@
 - [x] `POST /api/v1/auth/register`：username 3–32 字元 `[A-Za-z0-9_]`、password ≥ 8 字元；重複帳號回 409
 - [x] Register schema 只有 `username`、`password`，**不含 role**，且 `model_config = ConfigDict(extra="forbid")`（多帶欄位回 422），角色一律由後端設為 user
 - [x] 驗收：註冊時帶 `role=admin` 不會成為 admin（回 422，且不建立帳號）
-- [x] `POST /api/v1/auth/login`：OAuth2 password flow（form），回傳 `{access_token, token_type}`；Swagger 可直接 Authorize（驗證方式：openapi.json 含 OAuth2 password flow、以 form 登入成功；Swagger 頁面的 Authorize 按鈕未由實作者實際點擊）
+- [x] `POST /api/v1/auth/login`：OAuth2 password flow（form），回傳 `{access_token, token_type}`；Swagger 可直接 Authorize（驗證：openapi.json 含 OAuth2 password flow、以 form 登入成功；Checkpoint 1（10/19 18:05）由使用者在 Swagger 點 Authorize 以 admin 登入，`/users/me` 回 200）
 - [x] `GET /api/v1/users/me`
 - [x] 未登入或 token 無效回 401；已停用帳號回 401；權限不足回 403
 
@@ -317,7 +317,7 @@ async def update(
 - [x] 禁止原生 SQL 的 grep 檢查無結果
 - [ ] 交付物：README（介紹、技術棧、本地運行、Docker 部署、API 文件連結、三種角色測試帳號、設計決策）、`.env.example`、`sample_data/records.csv`、`docs/architecture.png` 皆已備齊；**GitHub repo（public）⚠ 目前為 private，待通知後改 public**
 
-> 驗證紀錄（10/19，commit `5ae787b`）：重新 clone、刪 volume、無 `.env`，`docker compose build --no-cache` 49 秒、三服務 healthy 共 74 秒；`restart api` 顯示 `shutdown flush wrote 4 metrics (0 left unwritten)`；139 個測試全綠；grep 無結果；三角色 QA 走查（含 admin 停用帳號後被停用者不重整即跳回登入頁）通過。走查中發現並修正 Excel 下載 401 與 viewer 卡在資料管理頁兩個問題。
+> 驗證紀錄（10/19，commit `5ae787b`）：重新 clone、刪 volume、無 `.env`，`docker compose build --no-cache` 49 秒、三服務 healthy 共 74 秒；`restart api` 顯示 `shutdown flush wrote 4 metrics (0 left unwritten)`；139 個測試全綠；grep 無結果；三角色 QA 走查（含 admin 停用帳號後被停用者不重整即跳回登入頁）通過。Swagger Authorize 已於 Checkpoint 1（18:05）由使用者手動驗證（admin 登入、`/users/me` 200）。走查中發現並修正 Excel 下載 401 與 viewer 卡在資料管理頁兩個問題。
 
 ## 13. 優先序（時間不夠時由下往上砍）
 
