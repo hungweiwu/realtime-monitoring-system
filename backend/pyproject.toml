@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Real-time data analytics and monitoring API"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.20.0",
     "asyncmy>=0.2.16",
     "fastapi>=0.146.0",
     "pydantic-settings>=2.16.0",
@@ -17,6 +18,8 @@ package = false
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Alembic 自動產生的 migration 不納入 lint
+extend-exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]

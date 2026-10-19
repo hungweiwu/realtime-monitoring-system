@@ -16,6 +16,8 @@ FROM python:3.12-slim AS runtime
 RUN useradd --create-home --uid 1000 app
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
+COPY alembic.ini ./
+COPY migrations ./migrations
 COPY app ./app
 COPY --chmod=755 entrypoint.sh ./
 ENV PATH="/app/.venv/bin:$PATH" \

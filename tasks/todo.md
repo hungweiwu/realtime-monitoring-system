@@ -30,21 +30,23 @@
 
 > 實作備註：asyncmy 0.2.16 有 manylinux aarch64 wheel，builder 不需 build-essential（plan 的預防措施未採用）。
 
-### T2：資料模型與 Alembic 初始 migration
+### ✅ T2：資料模型與 Alembic 初始 migration
 **Description:** 建立 `Base`、`UTCDateTime` TypeDecorator、四個 model（含索引、`role` 用 `native_enum=False`），用 `alembic init -t async` 設定 env，並產生初始 migration。entrypoint 的 `alembic upgrade head` 開始生效。
 
 **Acceptance criteria:**
-- [ ] 啟動後 DB 內有四張表，索引符合 SPEC 第 3 節
-- [ ] `alembic upgrade head` 重跑不報錯；`alembic downgrade base` 可回復
-- [ ] `UTCDateTime` 寫入 Asia/Taipei 時間，讀回時是等值的 UTC aware datetime
+- [x] 啟動後 DB 內有四張表，索引符合 SPEC 第 3 節
+- [x] `alembic upgrade head` 重跑不報錯；`alembic downgrade base` 可回復
+- [x] `UTCDateTime` 寫入 Asia/Taipei 時間，讀回時是等值的 UTC aware datetime
 
 **Verification:**
-- [ ] `docker compose exec db mariadb -u... -e "SHOW INDEX FROM metrics"`（人工檢查用，不在程式碼內）
-- [ ] `UTCDateTime` 的單元測試（T3 測試基礎完成後補跑）
+- [x] `docker compose exec db mariadb -u... -e "SHOW INDEX FROM metrics"`（人工檢查用，不在程式碼內）
+- [ ] `UTCDateTime` 的單元測試（T3 測試基礎完成後補跑；目前已在容器內手動驗證）
 
 **Dependencies:** T1
 **Files:** `backend/app/db/base.py`、`backend/app/db/types.py`、`backend/app/models/*.py`、`backend/migrations/{env.py,versions/0001_init.py}`、`backend/alembic.ini`
 **Scope:** M
+
+> 實作備註：autogenerate 的 downgrade 會先刪 FK 依附的索引，MariaDB 拒絕（error 1553），已改為直接依子表→父表順序 drop table。
 
 ### T3：統一錯誤處理、日誌、測試基礎設施
 **Description:** 建立 `AppError` 階層與四個 exception handler（AppError、HTTPException、RequestValidationError、500）；設定 stdlib logging 輸出到 stdout；在 compose 加 `db-test` 與 `api-test`（Dockerfile 的 `test` stage），寫好 conftest（create_all、每個測試後清表、`ENABLE_GENERATOR=false`、AsyncClient fixture）。
