@@ -121,6 +121,7 @@
 - [ ] 日誌：stdlib logging 輸出到 stdout（含時間、level、logger、訊息）；重要操作（登入成功/失敗、註冊、records 新增/修改/刪除/匯入、角色變更、停用、flush 失敗）同時寫入 `system_logs`
 - [ ] `GET /health`：不需登入，回傳 DB 連線狀態，給 compose healthcheck 用
 - [ ] Swagger 在 `/docs`
+- [ ] 所有 request 的時間欄位（body 與 query 參數）型別一律用 Pydantic `AwareDatetime`，沒帶時區回 **422**。理由：`UTCDateTime` 在 bind 階段拒收 naive datetime 時丟的 ValueError 會被 SQLAlchemy 包成 `StatementError` 變成 500，使用者輸入錯誤不該是 500，必須在 API 邊界就擋下。例外：CSV / JSON 匯入維持「無時區視為 Asia/Taipei」，由 `import_service` 自行轉換（見 5.2）
 - [ ] 所有設定由 pydantic-settings 從環境變數讀取；compose 內所有變數都有開發用預設值（`${VAR:-default}`），**不建 `.env` 也能啟動**；`.env.example` 列出全部變數與說明
 
 ## 6. 架構與關鍵設計

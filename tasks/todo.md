@@ -101,6 +101,7 @@
 - [ ] user 與 admin 可新增；viewer 新增回 403
 - [ ] user 改或刪別人的資料回 403；admin 可改任何人的；不存在回 404
 - [ ] PATCH 只更新有帶的欄位；PUT 缺欄位回 422
+- [ ] body 的 `timestamp` 用 `AwareDatetime`：不帶時區回 422（不是 500）
 
 **Verification:**
 - [ ] `test_records_crud.py` 全綠
@@ -116,6 +117,7 @@
 - [ ] 各篩選條件可組合使用，total 是篩選後的總筆數
 - [ ] `size=101` 或非法的 `sort_by` 回 422
 - [ ] 排序方向正確，第 2 頁的資料不與第 1 頁重複
+- [ ] `start` / `end` 用 `AwareDatetime`：`start` 不帶時區回 422
 
 **Verification:**
 - [ ] `test_records_list.py` 全綠
