@@ -143,3 +143,25 @@ async def test_export_with_naive_start_returns_422(
 
 async def test_export_without_token_returns_401(client: AsyncClient) -> None:
     assert (await client.get("/api/v1/analytics/export")).status_code == 401
+
+
+async def test_column_widths_fit_content_and_are_capped(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_user(db_session, "alice")
+    db_session.add_all(
+        [
+            Record(title="短", value=1, category="temperature", timestamp=T0, created_by=user.id),
+            Record(title="x" * 150, value=2, category="c", timestamp=T0, created_by=user.id),
+        ]
+    )
+    await db_session.commit()
+
+    wb = workbook(await export(client, user, source="records"))
+    data, summary = wb["data"], wb["summary"]
+
+    # 欄位依序：id, title, value, category, timestamp, created_by
+    assert data.column_dimensions["E"].width >= len("timestamp (Asia/Taipei)")
+    assert data.column_dimensions["D"].width >= len("temperature")
+    assert data.column_dimensions["B"].width <= 60  # 超長 title 不會把欄位撐到幾百字寬
+    assert summary.column_dimensions["A"].width >= len("exported_rows")
