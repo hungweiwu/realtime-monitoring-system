@@ -3,6 +3,10 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
+# 開發用預設值：讓 docker compose up 不需 .env 就能啟動。任何人都能用它簽出 Admin token，
+# 正式環境必須以環境變數覆寫（啟動時若仍是此值會印出警告）
+DEV_JWT_SECRET = "dev-only-change-me-in-production-0123456789"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -21,7 +25,7 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-    jwt_secret_key: str = "dev-only-change-me-in-production-0123456789"
+    jwt_secret_key: str = DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 

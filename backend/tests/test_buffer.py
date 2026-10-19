@@ -77,6 +77,25 @@ async def test_failed_flush_puts_points_back_in_order() -> None:
     assert [p["value"] for p in buffer.snapshot()] == [0.0, 1.0, 2.0]
 
 
+async def test_failed_batch_goes_before_points_appended_during_flush() -> None:
+    buffer = MetricBuffer(FailingSession, batch_size=100, max_size=1000)
+
+    class AppendThenFail(FailingSession):
+        async def commit(self) -> None:
+            # 模擬寫入 DB 的 await 期間產生器又 append 了一筆，接著寫入失敗
+            buffer.append(point(2))
+            raise ConnectionError("database unavailable")
+
+    buffer._session_factory = AppendThenFail
+    buffer.append(point(0))
+    buffer.append(point(1))
+
+    await buffer.flush()
+
+    # 失敗的批次較舊，必須放回前端，寫入期間新進的接在後面，時間順序才正確
+    assert [p["value"] for p in buffer.snapshot()] == [0.0, 1.0, 2.0]
+
+
 async def test_points_survive_failure_and_are_written_on_next_flush(
     db_session: AsyncSession,
 ) -> None:
@@ -168,6 +187,7 @@ def test_is_anomaly_outside_bounds() -> None:
     assert is_anomaly(5, low=10, high=90)
     assert not is_anomaly(50, low=10, high=90)
     assert not is_anomaly(90, low=10, high=90)
+    assert not is_anomaly(10, low=10, high=90)
 
 
 def test_generate_metric_shape() -> None:

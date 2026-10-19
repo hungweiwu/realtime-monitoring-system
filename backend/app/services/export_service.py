@@ -1,4 +1,6 @@
+import asyncio
 import io
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -10,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.schemas.analytics import AnalyticsParams
+from app.schemas.analytics import AnalyticsParams, CategoryStat, Summary
 from app.services import analytics_service
 from app.services.analytics_service import MODELS, analytics_timezone, conditions
 
@@ -50,6 +52,18 @@ async def build_workbook(session: AsyncSession, params: AnalyticsParams) -> byte
     summary = await analytics_service.summary(session, params)
     categories = await analytics_service.by_category(session, params)
 
+    # 產生 xlsx 是純 CPU 工作（5 萬列需數秒）：放到執行緒，避免卡住 event loop 上的產生器與推送
+    return await asyncio.to_thread(_render_workbook, params, columns, rows, summary, categories, tz)
+
+
+def _render_workbook(
+    params: AnalyticsParams,
+    columns: list[str],
+    rows: Sequence[Sequence[Any]],
+    summary: Summary,
+    categories: list[CategoryStat],
+    tz: ZoneInfo,
+) -> bytes:
     # write_only：逐列寫入不在記憶體保留整份工作表物件，大量資料時記憶體用量較低
     wb = Workbook(write_only=True)
     data = wb.create_sheet("data")

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import literal, select
 
 from app.api.v1.router import api_router
-from app.core.config import get_settings
+from app.core.config import DEV_JWT_SECRET, get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.db.session import SessionLocal, engine
@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    if settings.jwt_secret_key == DEV_JWT_SECRET:
+        logger.warning(
+            "JWT_SECRET_KEY is the public development default; anyone can forge tokens. "
+            "Set JWT_SECRET_KEY before exposing this service."
+        )
     buffer: MetricBuffer = app.state.metric_buffer
 
     generator_task = flush_task = None

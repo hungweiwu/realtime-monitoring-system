@@ -91,12 +91,16 @@ class FakeSocket:
         self.delay = delay
         self.fail = fail
         self.sent: list[str] = []
+        self.closed_with: int | None = None
 
     async def send_text(self, data: str) -> None:
         if self.fail:
             raise RuntimeError("connection reset")
         await asyncio.sleep(self.delay)
         self.sent.append(data)
+
+    async def close(self, code: int = 1000) -> None:
+        self.closed_with = code
 
 
 async def test_broadcast_sends_same_message_to_all_connections() -> None:
@@ -124,6 +128,21 @@ async def test_broadcast_drops_failing_and_slow_connections_without_blocking() -
     assert manager.count == 1
 
 
+async def test_dropped_connections_are_closed_so_clients_reconnect() -> None:
+    manager = ConnectionManager(send_timeout=0.1)
+    healthy, slow, broken = FakeSocket(), FakeSocket(delay=5), FakeSocket(fail=True)
+    for ws in (healthy, slow, broken):
+        manager.add(ws)
+
+    await manager.broadcast(point(0))
+    await asyncio.sleep(0.05)  # close 在背景 task 執行
+
+    # 只從名單移除而不關閉的話，用戶端收不到 onclose、不會重連，畫面停在「連線中」
+    assert slow.closed_with == 1013
+    assert broken.closed_with == 1013
+    assert healthy.closed_with is None
+
+
 # --- token 遮蔽 ---
 
 
@@ -143,6 +162,27 @@ def test_token_is_redacted_from_uvicorn_log_records() -> None:
     message = record.getMessage()
     assert "eyJhbGciOi" not in message
     assert "token=***" in message
+
+
+def test_redacted_access_log_still_formats_with_uvicorn_access_formatter() -> None:
+    # uvicorn 的 AccessFormatter 會把 record.args 解包成 5 個值；filter 不能破壞 args
+    from uvicorn.logging import AccessFormatter
+
+    record = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        0,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1:5000", "GET", "/api/v1/metrics/latest?token=secret.jwt", "1.1", 200),
+        None,
+    )
+
+    TokenRedactingFilter().filter(record)
+    line = AccessFormatter('%(client_addr)s - "%(request_line)s" %(status_code)s').format(record)
+
+    assert "secret.jwt" not in line
+    assert "token=***" in line
 
 
 # --- /metrics/latest ---

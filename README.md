@@ -249,6 +249,11 @@ grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app b
 
 ## 已知限制
 
+- **預設 JWT 金鑰是公開的**：為了不建 `.env` 也能一行啟動，`JWT_SECRET_KEY` 有開發用預設值；知道這個值的人可以自行簽出任何使用者（含 Admin）的 token。啟動時若仍使用預設值，log 會印出 WARNING。對外提供服務前必須以環境變數覆寫。
+- **沒有登入頻率限制**：可對 `/auth/login` 無限次嘗試；每次失敗也會寫一筆 `system_logs`。正式環境應依 IP／帳號限流（例如反向代理或 slowapi），並對日誌表設保存期限。
+- **廣播最多讓產生器等 1 秒**：產生器會 `await` 本次廣播，慢連線在 `WS_SEND_TIMEOUT_SECONDS`（1 秒）後才被斷開，因此有慢連線時該筆的間隔會拉長到約 2 秒。可改為把廣播丟成背景 task，或以固定節拍（`loop.time()`）排程。
+- **前端編輯資料會截掉秒數**：資料管理頁的時間欄位以分鐘為單位，編輯時以 PUT 送出全部欄位，原本帶秒數的時間（例如匯入的 `10:15:30`）會被存成 `10:15:00`。可改為只 PATCH 有變動的欄位。
+- **大範圍分析沒有上限**：`trend` 以 `interval=minute` 且不指定日期範圍時，會回傳全部歷史的每分鐘一筆；`summary`／`by-category` 不加篩選時掃描整張 metrics 表；`records` 預設依 `timestamp` 排序但只有 `(category, timestamp)` 複合索引。資料量大時應要求日期範圍、限制區間數，並為 `records.timestamp` 加索引。
 - **瀏覽器重新整理會登出**：登入狀態存在 Streamlit 的 `st.session_state`，每個瀏覽器分頁一份，重新整理即清空；要保留需改存 cookie，不在本次範圍。
 - **沒有 refresh token**：access token 效期 60 分鐘（`ACCESS_TOKEN_EXPIRE_MINUTES`），過期需重新登入。
 - **uvicorn 只能單一 worker**：產生器與 buffer 在行程內，多 worker 會各自產生資料；水平擴展需把產生器獨立成服務、buffer 改用外部佇列。

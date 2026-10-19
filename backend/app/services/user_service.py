@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +19,9 @@ async def register(session: AsyncSession, data: UserRegister) -> User:
     if exists is not None:
         raise ConflictError("username already exists")
 
-    user = User(
-        username=data.username, hashed_password=hash_password(data.password), role=Role.USER
-    )
+    # argon2 刻意耗 CPU（數十 ms）：放到執行緒，避免卡住 event loop 上的產生器與推送
+    hashed = await asyncio.to_thread(hash_password, data.password)
+    user = User(username=data.username, hashed_password=hashed, role=Role.USER)
     session.add(user)
     try:
         await session.flush()
@@ -34,7 +36,8 @@ async def register(session: AsyncSession, data: UserRegister) -> User:
 
 async def authenticate(session: AsyncSession, username: str, password: str) -> User:
     user = await session.scalar(select(User).where(User.username == username))
-    if not verify_password(password, user.hashed_password if user else None):
+    hashed = user.hashed_password if user else None
+    if not await asyncio.to_thread(verify_password, password, hashed):
         log_action(session, "auth.login_failed", detail=f"username={username}", level="WARNING")
         await session.commit()
         raise AuthenticationError(INVALID_CREDENTIALS)

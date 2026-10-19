@@ -13,11 +13,17 @@ class TokenRedactingFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
-        if "token=" in message:
-            record.msg = _TOKEN_PATTERN.sub(r"\1***", message)
-            record.args = None
+        # 在 args 內逐項遮蔽而非改寫成單一字串：uvicorn 的 AccessFormatter 會把 args 解包成
+        # 固定 5 個值，args 被清掉會讓整行 access log 格式化失敗而遺失
+        if isinstance(record.args, tuple):
+            record.args = tuple(_redact(a) if isinstance(a, str) else a for a in record.args)
+        elif isinstance(record.msg, str):
+            record.msg = _redact(record.msg)
         return True
+
+
+def _redact(text: str) -> str:
+    return _TOKEN_PATTERN.sub(r"\1***", text) if "token=" in text else text
 
 
 def setup_logging(level: str) -> None:
