@@ -269,23 +269,25 @@
 
 > 實作備註：時間換成 Asia/Taipei（Excel 不支援時區）、字串強制為文字防公式注入、超過上限保留最新資料。時區設定由 `ANALYTICS_UTC_OFFSET` 改為 `ANALYTICS_TIMEZONE`（IANA 名稱），偏移由名稱換算。
 
-### T14：前端 Records 頁與分析頁
+### ✅ T14：前端 Records 頁與分析頁
 **Description:**
 - `views/records.py`：列表、篩選、分頁、排序、新增、編輯、刪除、上傳匯入，依角色隱藏按鈕
 - `views/analytics.py`：source 與篩選條件、summary 指標卡、分類長條圖、趨勢折線圖、Excel 下載按鈕
 
 **Acceptance criteria:**
-- [ ] user 能完成 records 的新增、修改、刪除與匯入；viewer 看不到寫入相關按鈕
-- [ ] 分析頁切換 source 或篩選條件後，圖表跟著更新；Excel 可下載
+- [x] user 能完成 records 的新增、修改、刪除與匯入；viewer 看不到寫入相關按鈕
+- [x] 分析頁切換 source 或篩選條件後，圖表跟著更新；Excel 可下載
 
 **Verification:**
-- [ ] 用 user 和 viewer 兩種角色手動走過一次
+- [x] 用 user 和 viewer 兩種角色手動走過一次
 
-- [ ] 所有時間顯示一律轉 Asia/Taipei（API 回傳 UTC；trend 的 bucket 例如台北 10/20 是 `2026-10-19T16:00:00Z`，直接畫會讓人以為分組錯了），欄位標題註明時區
+- [x] 所有時間顯示一律轉 Asia/Taipei（API 回傳 UTC；trend 的 bucket 例如台北 10/20 是 `2026-10-19T16:00:00Z`，直接畫會讓人以為分組錯了），欄位標題註明時區
 
 **Dependencies:** T6、T7、T10、T13
 **Files:** `frontend/views/{records.py,analytics.py}`、`frontend/utils/api.py`
 **Scope:** M
+
+> 實作備註：AppTest 對真實後端驗證 user 新增／篩選／編輯／刪除、viewer 無寫入分頁、分析頁兩種來源；瀏覽器驗證匯入（部分成功與錯誤列表）與圖表；Excel 下載以按下時才產生的 callable 實作，在容器內驗證回傳有效 xlsx。
 
 ### ✅ Checkpoint 4（10/20 結束前）
 - [ ] 前端可操作 records、即時、分析三個模組；pytest 全綠

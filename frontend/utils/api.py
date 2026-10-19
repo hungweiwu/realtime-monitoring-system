@@ -51,3 +51,27 @@ def get(path: str, **kwargs: Any) -> Any:
 
 def post(path: str, **kwargs: Any) -> Any:
     return request("POST", path, **kwargs).json()
+
+
+def put(path: str, **kwargs: Any) -> Any:
+    return request("PUT", path, **kwargs).json()
+
+
+def patch(path: str, **kwargs: Any) -> Any:
+    return request("PATCH", path, **kwargs).json()
+
+
+def delete(path: str, **kwargs: Any) -> None:
+    request("DELETE", path, **kwargs)
+
+
+def download(path: str, params: dict[str, Any]) -> bytes:
+    """給 st.download_button 的延遲下載用。
+
+    在下載 callback 中執行，不能呼叫 st.rerun，所以不走 request() 的 401 處理，錯誤直接拋出。
+    """
+    headers = {"Authorization": f"Bearer {auth.get_token()}"}
+    resp = httpx.get(f"{API_BASE_URL}{path}", params=params, headers=headers, timeout=60)
+    if resp.is_error:
+        raise _error_from(resp)
+    return resp.content
