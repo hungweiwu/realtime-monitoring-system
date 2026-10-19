@@ -195,7 +195,7 @@ cd backend && uv run ruff check . && uv run ruff format --check .
 帳號不存在與密碼錯誤回傳相同的 401 與訊息；帳號不存在時也會用一個假 hash 跑一次 argon2 驗證，讓兩種情況的回應時間相近，避免以時間差枚舉帳號。
 
 ### 時間一律以 UTC 儲存
-MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀出時補回 UTC，並拒收沒有時區的 datetime。API 的時間參數使用 Pydantic `AwareDatetime`，沒帶時區回 422（在邊界擋下，避免進到 DB 層變成 500）。CSV / JSON 匯入例外：沒帶時區的時間視為 Asia/Taipei。
+MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀出時補回 UTC，並拒收沒有時區的 datetime。API 的時間參數使用 Pydantic `AwareDatetime`，沒帶時區或超出 1970–2100 的範圍都回 422（在邊界擋下，避免進到 DB 層溢位變成 500）；匯入時範圍外的列會逐列回報錯誤，不影響其他列。CSV / JSON 匯入例外：沒帶時區的時間視為 Asia/Taipei。
 
 ### 批量匯入採部分成功
 逐列驗證，合格列以單一 transaction 一次寫入，不合格列回報資料列序號與原因。上限 5 MB / 10,000 列（超過回 413）。
@@ -219,7 +219,7 @@ MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀�
 ### Streamlit 如何接即時資料
 Streamlit 每次互動都會重跑整份 script，Python 端無法長期維持一條 WebSocket 連線。因此即時監控頁用 `st.iframe` 嵌入一段 HTML／JS，由**瀏覽器**直接連 WebSocket 並以 Chart.js 畫圖，是真正的 push 而非 polling。
 - **兩個位址**：Streamlit 的 Python 端在容器內呼叫後端用 `API_BASE_URL=http://api:8000`；iframe 的 JS 在使用者瀏覽器執行，用 `PUBLIC_WS_URL=ws://localhost:8000`。
-- **初始資料由 Python 端抓好注入**：iframe 內的 JS 若直接 fetch 後端會被 CORS 擋，所以由 Python 端先呼叫 `/api/v1/metrics/latest` 取最近 60 筆，連同 token 以 `json.dumps` 注入（並轉義 `</`），不用字串拼接。
+- **初始資料由 Python 端抓好注入**：iframe 內的 JS 若直接 fetch 後端會被 CORS 擋，所以由 Python 端先呼叫 `/api/v1/metrics/latest` 取最近 60 筆，連同 token 以 `json.dumps` 注入（並把 `<`、`>`、`&` 轉成 `\u003c` 等跳脫，資料無法提前結束 script 區塊），不用字串拼接。Chart.js 以 SRI（`integrity`）載入，載入失敗時頁面會顯示提示。
 - **頁面不放會觸發重跑的元件**：重跑會重建 iframe，WebSocket 重連、圖表重畫。
 - **斷線處理**：收到 close code 1008（token 無效、過期、帳號停用）顯示「請重新登入」且不重連；其他原因（例如 API 重啟）以 1、2、4… 秒漸增間隔自動重連，最長 30 秒。
 - **Chart.js 從 CDN（cdnjs）載入**：瀏覽器需能連外網；離線環境需改為把 `chart.umd.min.js` 放進專案由 Streamlit 提供。
@@ -250,6 +250,9 @@ grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app b
 ## 已知限制
 
 - **預設 JWT 金鑰是公開的**：為了不建 `.env` 也能一行啟動，`JWT_SECRET_KEY` 有開發用預設值；知道這個值的人可以自行簽出任何使用者（含 Admin）的 token。啟動時若仍使用預設值，log 會印出 WARNING。對外提供服務前必須以環境變數覆寫。
+- **服務 port 綁在 0.0.0.0，搭配公開的預設金鑰有區網風險**：compose 的 `8000`、`8501` 對所有網卡開放，同一區網的人可以連進來；若又沒覆寫 `JWT_SECRET_KEY`，對方能自行簽出 Admin token。只在本機試用時可把 port 改成 `127.0.0.1:8000:8000`；對外前務必覆寫金鑰並加反向代理。
+- **WebSocket 連線數沒有上限**：任何登入者（含 viewer）都能開多條連線，每多一條都增加每次廣播的成本。正式環境可限制每位使用者的連線數，或在反向代理層限流。
+- **分頁與篩選的程式碼有重複**：分頁查詢（count + offset/limit）、`Page[...]` 組裝、時間範圍條件與 `start <= end` 檢查在 records、admin、analytics 各寫了一份。行為正確、各有測試，但可抽成共用的 `paginate()` helper 與時間範圍 mixin。
 - **沒有登入頻率限制**：可對 `/auth/login` 無限次嘗試；每次失敗也會寫一筆 `system_logs`。正式環境應依 IP／帳號限流（例如反向代理或 slowapi），並對日誌表設保存期限。
 - **廣播最多讓產生器等 1 秒**：產生器會 `await` 本次廣播，慢連線在 `WS_SEND_TIMEOUT_SECONDS`（1 秒）後才被斷開，因此有慢連線時該筆的間隔會拉長到約 2 秒。可改為把廣播丟成背景 task，或以固定節拍（`loop.time()`）排程。
 - **前端編輯資料會截掉秒數**：資料管理頁的時間欄位以分鐘為單位，編輯時以 PUT 送出全部欄位，原本帶秒數的時間（例如匯入的 `10:15:30`）會被存成 `10:15:00`。可改為只 PATCH 有變動的欄位。
