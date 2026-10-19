@@ -314,19 +314,21 @@
 
 > 實作備註：admin router 掛 router 層級的 `require_admin` dependency，新增端點不會漏檢查。Admin 改自己回 403。pool 狀態回報 `overflow_in_use`（SQLAlchemy `overflow()` 未用滿時為負數，容易誤讀）。
 
-### T16：前端系統管理頁
+### ✅ T16：前端系統管理頁
 **Description:** `views/admin.py` 分四個 tab：使用者管理（改角色、停用）、系統日誌、DB 狀態、metrics 歷史。
 
 **Acceptance criteria:**
-- [ ] admin 可在頁面上改角色與停用帳號，結果立即反映
-- [ ] 四個 tab 都能載入資料
+- [x] admin 可在頁面上改角色與停用帳號，結果立即反映
+- [x] 四個 tab 都能載入資料
 
 **Verification:**
-- [ ] 手動：admin 停用 user 帳號後，user 那邊**不重新整理**，直接執行任一操作 → 收到 401 並被導回登入頁
+- [x] 手動：admin 停用 user 帳號後，user 那邊**不重新整理**，直接執行任一操作 → 收到 401 並被導回登入頁
 
 **Dependencies:** T10、T15
 **Files:** `frontend/views/admin.py`、`frontend/utils/api.py`
 **Scope:** S
+
+> 實作備註：分頁用 `st.tabs(key=..., on_change="rerun")`，伺服器記住目前分頁，且以 `.open` 只抓選取分頁的資料。瀏覽器雙分頁驗證：admin 停用 user 後，user 不重新整理按「下一頁」→ 401 → 導回登入頁並顯示「登入已失效」。flash 訊息與分頁導覽抽成 `utils/ui.py`，records 頁同步改用。
 
 ### T17：README、架構圖、交付文件（**不可砍，10/21 12:00 前開始**）
 **Description:**

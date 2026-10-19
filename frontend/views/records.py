@@ -3,7 +3,7 @@ from datetime import date, datetime, time
 import pandas as pd
 import streamlit as st
 
-from utils import api, auth
+from utils import api, auth, ui
 from utils.timefmt import TZ, TZ_LABEL, localize_column, to_api
 
 user = auth.current_user()
@@ -14,23 +14,13 @@ FLASH_KEY = "records_flash"
 
 
 def flash_and_rerun(message: str, errors: list | None = None) -> None:
-    """寫入操作完成後重跑以刷新列表；訊息先存進 session_state，重跑後在頁首顯示一次。
-
-    直接 st.success 再 st.rerun 的話訊息會在重跑時消失；且重跑後分頁會回到第一個，
-    所以結果顯示在頁首而不是原分頁裡。
-    """
-    st.session_state[FLASH_KEY] = {"message": message, "errors": errors or []}
-    st.rerun()
+    ui.flash_and_rerun(FLASH_KEY, message, errors)
 
 
 st.title("資料管理")
 if not can_write:
     st.caption("目前角色為 viewer：僅可檢視。")
-if flash := st.session_state.pop(FLASH_KEY, None):
-    st.success(flash["message"])
-    if flash["errors"]:
-        st.caption("未匯入的列（row 為資料列序號，不含標題列）：")
-        st.dataframe(pd.DataFrame(flash["errors"]), hide_index=True)
+ui.show_flash(FLASH_KEY, "未匯入的列（row 為資料列序號，不含標題列）：")
 
 # --- 篩選（form：按下套用才重跑，避免每打一個字就查詢一次）---
 with st.expander("篩選與排序", expanded=False):
@@ -65,16 +55,7 @@ try:
 except api.ApiError as exc:
     st.error(exc.message)
     st.stop()
-
-total_pages = max(1, -(-result["total"] // result["size"]))
-nav1, nav2, nav3 = st.columns([1, 2, 1])
-if nav1.button("← 上一頁", disabled=page <= 1):
-    st.session_state["records_page"] = page - 1
-    st.rerun()
-nav2.markdown(f"第 **{page} / {total_pages}** 頁，共 **{result['total']}** 筆")
-if nav3.button("下一頁 →", disabled=page >= total_pages):
-    st.session_state["records_page"] = page + 1
-    st.rerun()
+ui.pager("records_page", result["total"], result["size"])
 
 items = result["items"]
 if items:
@@ -123,14 +104,10 @@ def record_fields(prefix: str, defaults: dict | None = None) -> dict | None:
     return {"title": title, "value": value, "category": category, "timestamp": to_api(d, t)}
 
 
-def show_error(exc: api.ApiError) -> None:
-    st.error(exc.message)
-    for detail in exc.details or []:
-        if isinstance(detail, dict) and "loc" in detail:
-            st.caption(f"{detail['loc'][-1]}：{detail['msg']}")
-
-
-create_tab, edit_tab, import_tab = st.tabs(["新增", "編輯／刪除", "批量匯入"])
+# key + on_change="rerun"：分頁狀態由伺服器記住，寫入後重跑仍停在原分頁
+create_tab, edit_tab, import_tab = st.tabs(
+    ["新增", "編輯／刪除", "批量匯入"], key="records_tab", on_change="rerun"
+)
 
 with create_tab:
     with st.form("create", clear_on_submit=True):
@@ -139,7 +116,7 @@ with create_tab:
             try:
                 created = api.post("/api/v1/records", json=payload)
             except api.ApiError as exc:
-                show_error(exc)
+                ui.show_api_error(exc)
             else:
                 flash_and_rerun(f"已新增 #{created['id']}")
 
@@ -160,14 +137,14 @@ with edit_tab:
             try:
                 api.put(f"/api/v1/records/{selected['id']}", json=payload)
             except api.ApiError as exc:
-                show_error(exc)
+                ui.show_api_error(exc)
             else:
                 flash_and_rerun(f"已儲存 #{selected['id']}")
         if removed:
             try:
                 api.delete(f"/api/v1/records/{selected['id']}")
             except api.ApiError as exc:
-                show_error(exc)
+                ui.show_api_error(exc)
             else:
                 flash_and_rerun(f"已刪除 #{selected['id']}")
 
@@ -184,7 +161,7 @@ with import_tab:
                 files={"file": (uploaded.name, uploaded.getvalue())},
             )
         except api.ApiError as exc:
-            show_error(exc)
+            ui.show_api_error(exc)
         else:
             flash_and_rerun(
                 f"匯入 {uploaded.name}：成功 {outcome['success_count']} 筆，"
