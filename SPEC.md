@@ -1,4 +1,4 @@
-# Spec：即時資料分析與監控系統（緯穎 take-home）
+# Spec：即時資料分析與監控系統
 
 > 截止：**2026/10/21（三）17:00** 前回傳 GitHub 連結。
 > 本文件取代 `SPEC_DRAFT.md`，為開發唯一依據。決策變更先改這裡再改程式。
@@ -9,7 +9,7 @@
 
 建一個 `docker compose up` 一行啟動的即時資料分析與監控系統：FastAPI 後端（REST + WebSocket）、MariaDB 持久化、Streamlit 前端。審查重點預期在後端結構、容器化與可執行性，前端以「功能可操作」為標準。
 
-**使用者**：審查者（clone 後一行啟動、用三種角色測試帳號操作）、面試主管（追問設計決策）。
+**使用者**：審查者（clone 後一行啟動、用三種角色測試帳號操作）、技術審查者（追問設計決策）。
 
 **成功的樣子**：乾淨環境 `git clone` → `docker compose up` → 不建 `.env` 也能跑 → 瀏覽器開前端登入，四個功能模組都能操作；`/docs` 可用 Swagger Authorize 打所有 API。
 
@@ -170,7 +170,7 @@ lifespan 結束：停 generator → 最後一次 flush
 ## 7. 專案結構
 
 ```
-wiwynn_takehome/
+realtime-monitoring-system/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py            # app 建立、lifespan（產生器、flush task）、router 掛載
