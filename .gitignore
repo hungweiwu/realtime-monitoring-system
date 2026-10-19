@@ -1,0 +1,19 @@
+# 個人筆記，不進公開 repo
+HANDOFF.md
+prompt.md
+SPEC_DRAFT.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# 環境變數
+.env
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
