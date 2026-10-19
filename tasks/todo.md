@@ -87,10 +87,10 @@
 > 實作備註：Swagger 的 OAuth2 password flow 已出現在 openapi.json（tokenUrl=/api/v1/auth/login），並用 curl 送 form 登入驗證過；瀏覽器上的 Authorize 按鈕尚未手動點過。
 
 ### ✅ Checkpoint 1（10/19 結束前）
-- [ ] `docker compose down -v && docker compose up --build` 一次起得來
-- [ ] 三個種子帳號登入成功，Swagger 可 Authorize
-- [ ] pytest 全綠
-- [ ] 跟你確認進度，再進入 Phase 2
+- [x] `docker compose down -v && docker compose up --build` 一次起得來
+- [x] 三個種子帳號登入成功，Swagger 可 Authorize
+- [x] pytest 全綠
+- [x] 跟你確認進度，再進入 Phase 2
 
 ---
 
@@ -145,9 +145,9 @@
 **Scope:** M
 
 ### ✅ Checkpoint 2（10/20 12:00）
-- [ ] Swagger 走完 records 全流程，三種角色權限正確
-- [ ] pytest 全綠
-- [ ] 跟你確認進度
+- [x] Swagger 走完 records 全流程，三種角色權限正確
+- [x] pytest 全綠
+- [x] 跟你確認進度
 
 ---
 
@@ -228,9 +228,9 @@
 > 實作備註：18:47 開始，未超過 2 小時時限，未觸發退回方案 B。`components.v1.html` 在 Streamlit 1.66 已棄用，改用 `st.iframe`（HTML 字串走 srcdoc）。瀏覽器驗證：每秒更新、異常紅點與告警（以 METRIC_ANOMALY_HIGH=60 重啟確認）、API 重建後自動重連、帳號停用後收到 1008 顯示重新登入且不重連。
 
 ### ✅ Checkpoint 3（10/20 18:00）
-- [ ] 前端即時圖正常，`metrics` 批次寫入的 log 正常，restart 時有關機 flush
-- [ ] 跟你說明三個關鍵設計點中的兩個：批次寫入、Streamlit 接即時資料（寫進 README 草稿）
-- [ ] 確認進度與是否需要降級
+- [x] 前端即時圖正常，`metrics` 批次寫入的 log 正常，restart 時有關機 flush
+- [x] 跟你說明三個關鍵設計點中的兩個：批次寫入、Streamlit 接即時資料（寫進 README 草稿）
+- [x] 確認進度與是否需要降級
 
 ---
 
@@ -290,8 +290,8 @@
 > 實作備註：AppTest 對真實後端驗證 user 新增／篩選／編輯／刪除、viewer 無寫入分頁、分析頁兩種來源；瀏覽器驗證匯入（部分成功與錯誤列表）與圖表；Excel 下載以按下時才產生的 callable 實作，在容器內驗證回傳有效 xlsx。
 
 ### ✅ Checkpoint 4（10/20 結束前）
-- [ ] 前端可操作 records、即時、分析三個模組；pytest 全綠
-- [ ] 確認 10/21 的範圍
+- [x] 前端可操作 records、即時、分析三個模組；pytest 全綠
+- [x] 確認 10/21 的範圍
 
 ---
 
@@ -359,7 +359,7 @@
 - [ ] GitHub repo 為 public，且可匿名 clone
 
 **Verification:**
-- [ ] 在另一個目錄 `git clone <url> && docker compose up --build`
+- [x] 在另一個目錄 `git clone <url> && docker compose up --build`
 
 **Dependencies:** T17
 **Files:** 依 review 結果而定
