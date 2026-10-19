@@ -14,7 +14,9 @@ with login_tab:
         username = st.text_input("帳號")
         password = st.text_input("密碼", type="password")
         submitted = st.form_submit_button("登入", type="primary")
-    if submitted:
+    if submitted and not (username and password):
+        st.error("請輸入帳號與密碼")
+    elif submitted:
         try:
             token = api.post(
                 "/api/v1/auth/login",

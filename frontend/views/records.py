@@ -10,9 +10,27 @@ user = auth.current_user()
 can_write = user["role"] in ("admin", "user")
 is_admin = user["role"] == "admin"
 
+FLASH_KEY = "records_flash"
+
+
+def flash_and_rerun(message: str, errors: list | None = None) -> None:
+    """寫入操作完成後重跑以刷新列表；訊息先存進 session_state，重跑後在頁首顯示一次。
+
+    直接 st.success 再 st.rerun 的話訊息會在重跑時消失；且重跑後分頁會回到第一個，
+    所以結果顯示在頁首而不是原分頁裡。
+    """
+    st.session_state[FLASH_KEY] = {"message": message, "errors": errors or []}
+    st.rerun()
+
+
 st.title("資料管理")
 if not can_write:
     st.caption("目前角色為 viewer：僅可檢視。")
+if flash := st.session_state.pop(FLASH_KEY, None):
+    st.success(flash["message"])
+    if flash["errors"]:
+        st.caption("未匯入的列（row 為資料列序號，不含標題列）：")
+        st.dataframe(pd.DataFrame(flash["errors"]), hide_index=True)
 
 # --- 篩選（form：按下套用才重跑，避免每打一個字就查詢一次）---
 with st.expander("篩選與排序", expanded=False):
@@ -123,7 +141,7 @@ with create_tab:
             except api.ApiError as exc:
                 show_error(exc)
             else:
-                st.success(f"已新增 #{created['id']}")
+                flash_and_rerun(f"已新增 #{created['id']}")
 
 with edit_tab:
     # user 只能改自己建立的；admin 可改全部（後端另有 403 把關）
@@ -144,16 +162,14 @@ with edit_tab:
             except api.ApiError as exc:
                 show_error(exc)
             else:
-                st.success("已儲存")
-                st.rerun()
+                flash_and_rerun(f"已儲存 #{selected['id']}")
         if removed:
             try:
                 api.delete(f"/api/v1/records/{selected['id']}")
             except api.ApiError as exc:
                 show_error(exc)
             else:
-                st.success("已刪除")
-                st.rerun()
+                flash_and_rerun(f"已刪除 #{selected['id']}")
 
 with import_tab:
     st.caption(
@@ -170,6 +186,8 @@ with import_tab:
         except api.ApiError as exc:
             show_error(exc)
         else:
-            st.success(f"成功 {outcome['success_count']} 筆，失敗 {outcome['failed_count']} 筆")
-            if outcome["errors"]:
-                st.dataframe(pd.DataFrame(outcome["errors"]), hide_index=True)
+            flash_and_rerun(
+                f"匯入 {uploaded.name}：成功 {outcome['success_count']} 筆，"
+                f"失敗 {outcome['failed_count']} 筆",
+                outcome["errors"],
+            )
