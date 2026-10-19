@@ -214,8 +214,8 @@ docker compose down -v
 # 後端測試（啟動 db-test，在 api 映像內跑 pytest）
 docker compose --profile test run --rm api-test
 
-# 本地開發（不經 Docker，需本機 MariaDB 或只起 db 容器）
-docker compose up -d db
+# 本地開發（API/前端不經 Docker；db 用 dev override 對主機開 3306）
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn app.main:app --reload
 cd frontend && uv sync && uv run streamlit run app.py
 

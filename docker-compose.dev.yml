@@ -1,0 +1,7 @@
+# 本機開發用 override：讓主機上的 uvicorn / alembic 連得到 db。
+# 主 docker-compose.yml 刻意不對主機開 port，避免審查者本機已有 MySQL 佔用 3306 時啟動失敗。
+# 用法：docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+services:
+  db:
+    ports:
+      - "${DB_HOST_PORT:-3306}:3306"

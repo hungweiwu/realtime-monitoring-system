@@ -18,8 +18,6 @@ services:
       MARIADB_PASSWORD: ${DB_PASSWORD:-monitorpass}
     volumes:
       - db_data:/var/lib/mysql
-    ports:
-      - "${DB_HOST_PORT:-3306}:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
