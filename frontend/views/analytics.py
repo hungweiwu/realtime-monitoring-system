@@ -1,9 +1,10 @@
 from datetime import time
+from functools import partial
 
 import pandas as pd
 import streamlit as st
 
-from utils import api
+from utils import api, auth
 from utils.timefmt import TZ_LABEL, localize_column, to_api
 
 st.title("資料分析")
@@ -13,7 +14,8 @@ with st.form("analytics_filters"):
     source_label = c1.selectbox("資料來源", ["即時資料（metrics）", "手動資料（records）"])
     category = c2.text_input("分類（留空為全部）")
     date_range = c3.date_input(f"日期範圍（{TZ_LABEL}）", value=(), format="YYYY-MM-DD")
-    interval_label = c4.selectbox("趨勢區間", ["每小時", "每分鐘", "每天"])
+    # 預設每分鐘：系統剛啟動時只有幾分鐘的資料，以小時分組只有一個點、畫不出趨勢
+    interval_label = c4.selectbox("趨勢區間", ["每分鐘", "每小時", "每天"])
     st.form_submit_button("套用")
 
 params: dict = {"source": "metrics" if source_label.startswith("即時") else "records"}
@@ -60,14 +62,20 @@ with right:
     st.subheader(f"趨勢（{interval_label}，{TZ_LABEL}）")
     # bucket 是 UTC（例如台北 10/20 為 2026-10-19T16:00:00Z），轉成台北時間再畫，避免看起來分組錯位
     trend_df = localize_column(pd.DataFrame(trend), "bucket").set_index("bucket")
-    st.line_chart(trend_df[["avg", "max", "min"]])
+    if len(trend_df) < 2:
+        # 折線至少要兩個點才畫得出來，只有一個區間時改用長條圖
+        st.bar_chart(trend_df[["avg", "max", "min"]], stack=False)
+    else:
+        st.line_chart(trend_df[["avg", "max", "min"]])
     st.caption(f"共 {len(trend_df)} 個區間；時間為區間起點（{TZ_LABEL}）")
 
 st.divider()
+# token 在渲染時取出：下載的 callable 在背景執行緒執行，屆時讀不到 session_state
+export_token = auth.get_token()
 st.download_button(
     "下載 Excel（套用目前篩選）",
     # callable：按下時才向後端產生檔案，不在每次重跑時都下載一次
-    data=lambda: api.download("/api/v1/analytics/export", params),
+    data=partial(api.download, "/api/v1/analytics/export", params, export_token),
     file_name=f"{params['source']}_analytics.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     type="primary",

@@ -65,12 +65,13 @@ def delete(path: str, **kwargs: Any) -> None:
     request("DELETE", path, **kwargs)
 
 
-def download(path: str, params: dict[str, Any]) -> bytes:
+def download(path: str, params: dict[str, Any], token: str) -> bytes:
     """給 st.download_button 的延遲下載用。
 
-    在下載 callback 中執行，不能呼叫 st.rerun，所以不走 request() 的 401 處理，錯誤直接拋出。
+    Streamlit 在另一個執行緒執行這個 callable，沒有 script 執行環境，讀不到 st.session_state，
+    所以 token 必須由呼叫端在頁面渲染時取出後傳入；也不能呼叫 st.rerun，錯誤直接拋出。
     """
-    headers = {"Authorization": f"Bearer {auth.get_token()}"}
+    headers = {"Authorization": f"Bearer {token}"}
     resp = httpx.get(f"{API_BASE_URL}{path}", params=params, headers=headers, timeout=60)
     if resp.is_error:
         raise _error_from(resp)
