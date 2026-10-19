@@ -2,7 +2,6 @@ import csv
 import io
 import json
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,10 +17,16 @@ REQUIRED_COLUMNS = {"title", "value", "category", "timestamp"}
 
 def _parse_csv(text: str) -> list[dict[str, Any]]:
     reader = csv.DictReader(io.StringIO(text))
-    missing = REQUIRED_COLUMNS - set(reader.fieldnames or [])
-    if missing:
-        raise UnprocessableError(f"CSV is missing required columns: {', '.join(sorted(missing))}")
-    return list(reader)
+    try:
+        missing = REQUIRED_COLUMNS - set(reader.fieldnames or [])
+        if missing:
+            raise UnprocessableError(
+                f"CSV is missing required columns: {', '.join(sorted(missing))}"
+            )
+        return list(reader)
+    except csv.Error as exc:
+        # 例如單一欄位超過 csv 模組上限（預設 131072 字元）
+        raise UnprocessableError(f"invalid CSV: {exc}") from None
 
 
 def _parse_json(text: str) -> list[dict[str, Any]]:
@@ -29,6 +34,9 @@ def _parse_json(text: str) -> list[dict[str, Any]]:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise UnprocessableError(f"invalid JSON: {exc.msg}") from None
+    except RecursionError:
+        # 深層巢狀（[[[[...）會讓解析器遞迴過深
+        raise UnprocessableError("invalid JSON: nesting too deep") from None
     if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
         raise UnprocessableError("JSON must be an array of objects")
     return data
@@ -64,8 +72,6 @@ async def import_records(
     session: AsyncSession, filename: str, raw: bytes, actor: User
 ) -> ImportResult:
     rows = parse_rows(filename, raw)
-    default_tz = ZoneInfo(get_settings().import_default_timezone)
-
     records: list[Record] = []
     errors: list[ImportRowError] = []
     # row 為資料列序號（從 1 起算，不含 CSV 標題列）
@@ -75,15 +81,12 @@ async def import_records(
         except ValidationError as exc:
             errors.append(ImportRowError(row=index, message=_format_errors(exc)))
             continue
-        timestamp = row.timestamp
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=default_tz)
         records.append(
             Record(
                 title=row.title,
                 value=row.value,
                 category=row.category,
-                timestamp=timestamp,
+                timestamp=row.timestamp,
                 created_by=actor.id,
             )
         )

@@ -1,9 +1,9 @@
 from typing import Any, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models import Role
-from app.schemas.common import UTCDatetimeOut
+from app.schemas.common import BoundedDatetime, UTCDatetimeOut
 
 
 class PageParams(BaseModel):
@@ -14,8 +14,8 @@ class PageParams(BaseModel):
 
 
 class TimeRangeParams(PageParams):
-    start: AwareDatetime | None = None
-    end: AwareDatetime | None = None
+    start: BoundedDatetime | None = None
+    end: BoundedDatetime | None = None
 
     @model_validator(mode="after")
     def check_range(self) -> Self:

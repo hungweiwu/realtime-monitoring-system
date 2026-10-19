@@ -129,6 +129,28 @@ async def test_malformed_json_returns_422(client: AsyncClient, db_session: Async
     assert resp.status_code == 422
 
 
+async def test_csv_field_over_csv_module_limit_returns_422(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_user(db_session, "alice")
+    # csv 模組預設單一欄位上限 131072 字元，超過會丟 csv.Error
+    content = HEADER + "x" * 200_000 + ",1,c,2026-10-20T00:00:00Z\n"
+
+    resp = await upload(client, user, "r.csv", content)
+
+    assert resp.status_code == 422
+
+
+async def test_deeply_nested_json_returns_422(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_user(db_session, "alice")
+
+    resp = await upload(client, user, "r.json", "[" * 100_000 + "]" * 100_000)
+
+    assert resp.status_code == 422
+
+
 async def test_unsupported_extension_returns_422(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:

@@ -1,9 +1,11 @@
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
+from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, field_validator, model_validator
 
-from app.schemas.common import UTCDatetimeOut
+from app.core.config import get_settings
+from app.schemas.common import BoundedDatetime, UTCDatetimeOut, ensure_in_range
 
 Title = Annotated[str, Field(min_length=1, max_length=200)]
 Category = Annotated[str, Field(min_length=1, max_length=50)]
@@ -17,8 +19,8 @@ class RecordCreate(BaseModel):
     # FiniteFloat 擋掉 NaN / Infinity，MariaDB DOUBLE 存不了
     value: FiniteFloat
     category: Category
-    # AwareDatetime：沒帶時區直接 422，不讓 naive datetime 走到 DB 層變成 500
-    timestamp: AwareDatetime
+    # 沒帶時區或超出範圍直接 422，不讓 naive／極端時間走到 DB 層變成 500
+    timestamp: BoundedDatetime
 
 
 class RecordPut(RecordCreate):
@@ -31,7 +33,7 @@ class RecordPatch(BaseModel):
     title: Title | None = None
     value: FiniteFloat | None = None
     category: Category | None = None
-    timestamp: AwareDatetime | None = None
+    timestamp: BoundedDatetime | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -64,8 +66,8 @@ class RecordListParams(BaseModel):
     page: int = Field(1, ge=1)
     size: int = Field(20, ge=1, le=100)
     category: str | None = None
-    start: AwareDatetime | None = None
-    end: AwareDatetime | None = None
+    start: BoundedDatetime | None = None
+    end: BoundedDatetime | None = None
     min_value: float | None = None
     max_value: float | None = None
     # 白名單：只允許這些欄位排序，不接受任意欄位名
@@ -95,6 +97,15 @@ class RecordImportRow(BaseModel):
     value: FiniteFloat
     category: Category
     timestamp: datetime
+
+    @field_validator("timestamp")
+    @classmethod
+    def localize_and_check_range(cls, value: datetime) -> datetime:
+        # 沒帶時區視為匯入預設時區（Asia/Taipei）；範圍外的列在這裡失敗，
+        # 會被記成該列的錯誤，而不是整批寫入時在 DB 層 500
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo(get_settings().import_default_timezone))
+        return ensure_in_range(value)
 
 
 class ImportRowError(BaseModel):

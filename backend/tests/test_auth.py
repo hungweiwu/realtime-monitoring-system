@@ -1,11 +1,13 @@
 from datetime import timedelta
 from typing import Annotated
 
+import jwt
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.deps import require_role
 from app.core.exceptions import register_exception_handlers
 from app.core.security import create_access_token
@@ -148,6 +150,18 @@ async def test_me_with_expired_token_returns_401(
 ) -> None:
     user = await create_user(db_session, "alice")
     token = create_access_token(user.id, expires_delta=timedelta(seconds=-1))
+
+    resp = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 401
+
+
+async def test_token_without_exp_is_rejected(client: AsyncClient, db_session: AsyncSession) -> None:
+    user = await create_user(db_session, "alice")
+    settings = get_settings()
+    token = jwt.encode(
+        {"sub": str(user.id)}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
 
     resp = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
 

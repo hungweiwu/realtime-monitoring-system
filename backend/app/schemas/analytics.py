@@ -1,8 +1,8 @@
 from typing import Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
-from app.schemas.common import UTCDatetimeOut
+from app.schemas.common import BoundedDatetime, UTCDatetimeOut
 
 Source = Literal["records", "metrics"]
 
@@ -12,8 +12,8 @@ class AnalyticsParams(BaseModel):
 
     source: Source = "metrics"
     category: str | None = None
-    start: AwareDatetime | None = None
-    end: AwareDatetime | None = None
+    start: BoundedDatetime | None = None
+    end: BoundedDatetime | None = None
 
     @model_validator(mode="after")
     def check_range(self) -> Self:

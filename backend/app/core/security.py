@@ -35,7 +35,13 @@ def create_access_token(user_id: int, expires_delta: timedelta | None = None) ->
 def decode_access_token(token: str) -> int | None:
     settings = get_settings()
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        # require：沒有 exp 的 token 一律拒絕，不會被當成永久有效
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "sub"]},
+        )
         return int(payload["sub"])
     except (jwt.InvalidTokenError, KeyError, ValueError):
         return None
