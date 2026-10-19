@@ -44,8 +44,17 @@ Streamlit 每次互動都會重跑整份 script，Python 端無法長期維持�
 - **斷線處理**：收到 close code 1008（token 無效、過期、帳號停用）顯示「請重新登入」且不重連；其他原因（例如 API 重啟）以 1、2、4… 秒漸增間隔自動重連，最長 30 秒。
 - **Chart.js 從 CDN（cdnjs）載入**：瀏覽器需能連外網；離線環境需改為把 `chart.umd.min.js` 放進專案由 Streamlit 提供。
 
+### 資料分析
+- records 與 metrics 共用 `value / category / timestamp` 三欄，四個分析端點以 `source` 參數切換，聚合邏輯只寫一份。
+- 聚合全部用 ORM 表達式：`func.count / sum / avg / max / min` 與 `group_by`。
+- **趨勢依台北時間切分**：資料存 UTC，若直接以 UTC 截斷，「一天」會是台北早上 8 點到隔天 8 點。因此先以 `func.convert_tz(timestamp, '+00:00', '+08:00')` 轉換再以 `func.date_format` 截斷到分／時／日。台灣無日光節約，用數字偏移即可，MariaDB 不需匯入時區資料表。回傳的 `bucket` 仍統一為 UTC，與其他 API 一致。
+
 ### 禁止原生 SQL
-應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。
+應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。可用下列指令檢查（`send_text(` 這類方法名不會誤判）：
+
+```bash
+grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests
+```
 
 ### 容器
 - 多階段 Dockerfile：uv 在 builder 階段建好 venv，runtime 只複製 venv 與原始碼，以非 root 使用者執行。

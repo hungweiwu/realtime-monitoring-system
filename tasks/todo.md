@@ -3,7 +3,7 @@
 > 依據 `SPEC.md` 與 `tasks/plan.md`。每個任務完成時都要通過下列共通條件（Definition of Done），才算完成：
 > - `cd backend && uv run ruff check . && uv run ruff format --check .` 無錯誤
 > - `docker compose --profile test run --rm api-test` 全綠（T3 之後）
-> - `grep -rnE "text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests` 無結果
+> - `grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests` 無結果
 > - `docker compose up --build` 可啟動
 > - 若是關鍵設計，用 2–3 句說明「為什麼」，並記到 README 草稿
 
@@ -236,20 +236,22 @@
 
 ## Phase 4：資料分析（10/20 晚）
 
-### T12：分析 API（summary / by-category / trend）
+### ✅ T12：分析 API（summary / by-category / trend）
 **Description:** `analytics_service`：依 `source` 選擇 Record 或 Metric model，兩者共用同一組聚合函式；trend 用 `func.date_format` 依 minute、hour、day 截斷時間後分組。所有端點都支援 start、end、category 篩選，`source` 預設 metrics。
 
 **Acceptance criteria:**
-- [ ] summary 回傳的 count、sum、avg、max、min 對已知資料計算正確（records 與 metrics 各一組測試）
-- [ ] by-category 每個分類各一列；trend 依區間分組並依時間排序
-- [ ] 非法的 `source` 或 `interval` 回 422
+- [x] summary 回傳的 count、sum、avg、max、min 對已知資料計算正確（records 與 metrics 各一組測試）
+- [x] by-category 每個分類各一列；trend 依區間分組並依時間排序
+- [x] 非法的 `source` 或 `interval` 回 422
 
 **Verification:**
-- [ ] `test_analytics.py` 全綠
+- [x] `test_analytics.py` 全綠
 
 **Dependencies:** T5、T8
 **Files:** `backend/app/services/analytics_service.py`、`backend/app/schemas/analytics.py`、`backend/app/api/v1/analytics.py`、`backend/tests/test_analytics.py`
 **Scope:** M
+
+> 實作備註：trend 以 `analytics_utc_offset`（預設 +08:00）經 `convert_tz` 轉換後再分組，bucket 回傳 UTC。禁止原生 SQL 的 grep 改為 `(^|[^A-Za-z0-9_])text\(`，避免 `send_text(` 誤判。
 
 ### T13：Excel 匯出
 **Description:** `GET /analytics/export` 套用與分析相同的篩選條件，用 openpyxl 產生 `data` 工作表（上限 50,000 列）和 `summary` 工作表，以 StreamingResponse 下載。

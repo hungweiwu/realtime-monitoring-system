@@ -159,7 +159,7 @@ lifespan 結束：停 generator → 最後一次 flush
 ### 6.4 「禁止原生 SQL」的邊界
 - Alembic migration 使用 `op.create_table` 等 API 可接受
 - 應用程式碼與測試碼內任何 `text()`、`exec_driver_sql`、`execute("字串")` 都不允許，包含健康檢查
-- 交件前驗證：`grep -rnE "text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests` 必須無結果
+- 交件前驗證：`grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests` 必須無結果
 
 ### 6.5 多階段 Dockerfile
 - builder：`python:3.12-slim`，以 `COPY --from=ghcr.io/astral-sh/uv:<固定版本> /uv /usr/local/bin/uv` 取得 uv；設 `UV_PYTHON_DOWNLOADS=0`（禁止 uv 自行下載 Python，強制使用映像內的 `/usr/local/bin/python3.12`）；`uv sync --frozen --no-dev` 建 `/app/.venv`
@@ -227,7 +227,7 @@ cd backend && uv run alembic revision --autogenerate -m "<message>"
 cd backend && uv run ruff check . && uv run ruff format .
 
 # 禁止原生 SQL 檢查
-grep -rnE "text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests
+grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app backend/tests
 ```
 
 服務位址：前端 `http://localhost:8501`、API `http://localhost:8000`、Swagger `http://localhost:8000/docs`。
