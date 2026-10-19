@@ -1,6 +1,182 @@
 # 即時資料分析與監控系統
 
-> 草稿：功能完成後（T17）補齊專案介紹、技術棧、啟動步驟、API 文件、測試帳號與架構圖。
+FastAPI（REST + WebSocket）＋ MariaDB ＋ Streamlit 的即時資料分析與監控系統。後端每秒產生一筆模擬感測資料，透過 WebSocket 即時推送到前端並批次寫入資料庫；另提供手動資料的 CRUD 與批量匯入、統計分析與 Excel 匯出、三種角色的權限控管與系統管理。
+
+## 一行啟動
+
+```bash
+docker compose up --build
+```
+
+不需要先建立 `.env`：所有設定在 `docker-compose.yml` 都有開發用預設值（可參考 `.env.example` 覆寫）。首次啟動會自動執行 DB migration 並建立以下測試帳號：
+
+| 角色 | 帳號 | 密碼 | 權限 |
+|---|---|---|---|
+| Admin | `admin` | `admin12345` | 全部功能，含系統管理；可修改／刪除任何人的資料 |
+| User | `user` | `user12345` | 檢視、新增、批量匯入；只能修改／刪除自己建立的資料 |
+| Viewer | `viewer` | `viewer12345` | 僅檢視（含即時監控、分析與 Excel 匯出） |
+
+新註冊的帳號預設為 User，由 Admin 在「系統管理」調整角色。
+
+> 正式環境務必覆寫 `JWT_SECRET_KEY`、資料庫密碼與種子帳號密碼。
+
+## 服務網址
+
+| 服務 | 網址 |
+|---|---|
+| 前端（Streamlit） | http://localhost:8501 |
+| API 文件（Swagger UI） | http://localhost:8000/docs |
+| 健康檢查 | http://localhost:8000/health |
+
+在 Swagger 點右上角 **Authorize**，輸入上表任一帳密即可直接測試需登入的 API。
+
+若本機 8501 / 8000 已被佔用，可在 `.env` 設定 `FRONTEND_HOST_PORT`、`API_HOST_PORT`（改了 API port 需同步修改 `PUBLIC_WS_URL`）。
+
+## 功能
+
+| 模組 | 內容 |
+|---|---|
+| 使用者管理 | 註冊、登入（JWT，OAuth2 password flow）、登出；Admin / User / Viewer 三種角色 |
+| 資料管理 | Records CRUD；分頁、篩選（分類、時間範圍、數值範圍）、排序；CSV / JSON 批量匯入（逐列驗證、部分成功、回報錯誤列） |
+| 即時監控 | 每秒產生一筆資料、超出閾值標記異常；WebSocket 即時推送；記憶體 buffer 批次寫入 DB；前端即時折線圖＋分類柱狀圖、異常變色與告警 |
+| 資料分析 | 總計／平均／最大／最小、分類聚合、依分／時／日的趨勢；可切換即時資料或手動資料；Excel（.xlsx）匯出 |
+| 系統管理（Admin） | 使用者列表、修改角色、停用帳號；系統日誌查詢；資料庫狀態（連線、連接池、各表筆數、待寫 buffer）；即時資料歷史查詢 |
+
+### 主要 API
+
+所有端點都在 `/api/v1` 之下，完整規格見 Swagger。
+
+| 方法 | 路徑 | 說明 | 角色 |
+|---|---|---|---|
+| POST | `/auth/register`、`/auth/login` | 註冊、登入取得 JWT | 不需登入 |
+| GET | `/users/me` | 目前使用者 | 全部 |
+| GET / POST | `/records` | 列表（分頁、篩選、排序）／新增 | 讀：全部；寫：Admin、User |
+| GET / PUT / PATCH / DELETE | `/records/{id}` | 單筆讀取／整筆取代／部分修改／刪除 | 改刪：建立者或 Admin |
+| POST | `/records/import` | CSV / JSON 批量匯入 | Admin、User |
+| WS | `/ws/metrics?token=<JWT>` | 即時資料推送 | 全部 |
+| GET | `/metrics/latest` | 最新 N 筆即時資料（含尚未寫入 DB 的） | 全部 |
+| GET | `/analytics/summary`、`/by-category`、`/trend`、`/export` | 統計、分類聚合、趨勢、Excel 匯出（`source=metrics\|records`） | 全部 |
+| GET / PATCH | `/admin/users`、`/admin/users/{id}` | 使用者列表、修改角色／停用 | Admin |
+| GET | `/admin/logs`、`/admin/db-status`、`/admin/metrics` | 系統日誌、資料庫狀態、即時資料歷史 | Admin |
+
+錯誤回應統一為 `{"error": {"code", "message", "details"}}`；未登入 401、權限不足 403、驗證錯誤 422。
+
+範例資料：`sample_data/records.csv`（40 筆）、`sample_data/records.json`（10 筆），可在前端「資料管理 → 批量匯入」或 `POST /api/v1/records/import` 上傳。
+
+## 技術棧
+
+| 層 | 技術 |
+|---|---|
+| 後端 | Python 3.12、FastAPI（async）、Pydantic v2、pydantic-settings、PyJWT、pwdlib（argon2） |
+| 資料庫 | MariaDB 11.7、SQLAlchemy 2.1（async ORM）、asyncmy、Alembic |
+| 前端 | Streamlit 1.66（`st.navigation` 多頁面）、httpx、Chart.js（即時圖） |
+| 匯出 | openpyxl |
+| 容器 | 多階段 Dockerfile、Docker Compose、uv（依賴鎖定於 `uv.lock`） |
+| 測試 | pytest、pytest-asyncio、httpx，跑在獨立的 MariaDB 測試容器 |
+
+## 架構
+
+```mermaid
+flowchart LR
+    browser["使用者瀏覽器"]
+
+    subgraph compose["Docker Compose（network: backend）"]
+        subgraph fe["frontend 容器 :8501"]
+            st["Streamlit<br/>登入／資料管理／分析／系統管理"]
+        end
+        subgraph api["api 容器 :8000（uvicorn 單一 worker）"]
+            rest["REST API<br/>/api/v1/*"]
+            ws["WebSocket<br/>/api/v1/ws/metrics"]
+            gen["資料產生器<br/>每秒 1 筆"]
+            buf["記憶體 buffer<br/>每 5 秒或 50 筆 flush"]
+        end
+        db[("MariaDB 11.7")]
+    end
+    vol[("volume: db_data")]
+
+    browser -- "HTTP :8501" --> st
+    st -- "REST（容器內 http://api:8000）" --> rest
+    browser -- "WebSocket（瀏覽器直連 ws://localhost:8000）" --> ws
+    gen --> ws
+    gen --> buf
+    buf -- "add_all 批次寫入" --> db
+    rest -- "SQLAlchemy async + asyncmy<br/>連接池" --> db
+    db --- vol
+```
+
+即時資料的路徑（詳細設計見下方「即時資料批次寫入」）：
+
+```mermaid
+sequenceDiagram
+    participant G as 產生器
+    participant M as WebSocket 管理
+    participant B as buffer
+    participant F as flush 迴圈
+    participant D as MariaDB
+    participant U as 瀏覽器
+
+    loop 每秒
+        G->>M: broadcast(point)
+        M-->>U: 推送（並行送出，單條逾時 1 秒即斷開）
+        G->>B: append(point)
+        Note over B: 達 50 筆 → 喚醒 flush
+    end
+    F->>B: 每 5 秒或被喚醒：換成新的空 list
+    F->>D: add_all + commit
+    alt 寫入失敗
+        F->>B: 整批放回 buffer 前端，下個間隔重試
+    end
+    Note over G,D: 關機：停產生器 → 等 flush 迴圈結束 → 最後一次 flush
+```
+
+- Streamlit 的 Python 端在容器網路內以服務名 `api` 呼叫後端；即時監控頁的 JS 跑在瀏覽器，因此直接連主機的 `localhost:8000`。
+- 啟動順序：`db` 通過 healthcheck → `api`（`alembic upgrade head` → 建立種子帳號 → uvicorn）通過 `/health` → `frontend`。
+- 資料庫只在 compose 內部網路開放，不對主機開 port（本機開發用 `docker-compose.dev.yml`）。
+
+### 專案結構
+
+```
+backend/
+  app/
+    api/v1/        # 路由：auth, users, records, metrics, ws, analytics, admin
+    core/          # 設定、JWT／密碼、權限 dependency、錯誤處理、日誌
+    db/            # engine／session、Base、UTCDateTime 型別
+    models/        # SQLAlchemy models
+    schemas/       # Pydantic schemas
+    services/      # 業務邏輯（建立者權限、匯入、分析、匯出、系統日誌）
+    realtime/      # 資料產生器、buffer、WebSocket 管理
+    main.py        # app 與 lifespan（啟動／關閉背景工作）
+    seed.py        # 種子帳號
+  migrations/      # Alembic
+  tests/           # pytest
+frontend/
+  app.py           # st.navigation：依角色決定頁面
+  views/           # 各頁面
+  templates/       # 即時監控頁的 HTML／JS
+  utils/           # API client、登入狀態、時間轉換、共用元件
+sample_data/       # 匯入範例
+```
+
+## 本機開發與測試
+
+```bash
+# 後端測試（啟動獨立的 MariaDB 測試容器，資料放 tmpfs）
+docker compose --profile test run --rm api-test
+
+# 重設資料（刪除 DB volume）
+docker compose down -v
+
+# 不經 Docker 跑 API／前端：db 用 dev override 對主機開 3306
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+cd backend && uv sync && uv run alembic upgrade head && uv run python -m app.seed \
+  && uv run uvicorn app.main:app --reload
+cd frontend && uv sync && uv run streamlit run app.py
+
+# Lint / format
+cd backend && uv run ruff check . && uv run ruff format --check .
+```
+
+測試涵蓋認證、三種角色權限、Records CRUD／列表／匯入、批次寫入（門檻觸發、失敗放回、上限丟棄、關機 flush）、WebSocket 驗證與廣播、分析與匯出、Admin API。測試使用真實 MariaDB 而非 SQLite：趨勢分析用到的 `CONVERT_TZ` / `DATE_FORMAT` 是 MariaDB 函式。
 
 ## 設計決策
 
@@ -69,6 +245,9 @@ grep -rnE "(^|[^A-Za-z0-9_])text\(|exec_driver_sql|execute\([\"']" backend/app b
 
 ## 已知限制
 
+- **瀏覽器重新整理會登出**：登入狀態存在 Streamlit 的 `st.session_state`，每個瀏覽器分頁一份，重新整理即清空；要保留需改存 cookie，不在本次範圍。
+- **沒有 refresh token**：access token 效期 60 分鐘（`ACCESS_TOKEN_EXPIRE_MINUTES`），過期需重新登入。
+- **uvicorn 只能單一 worker**：產生器與 buffer 在行程內，多 worker 會各自產生資料；水平擴展需把產生器獨立成服務、buffer 改用外部佇列。
 - **即時資料在記憶體中最多停留一個 flush 間隔**：程序被強制終止（`kill -9`、OOM）時，buffer 中尚未寫入的資料（最多約 5 秒）會遺失；正常 `docker stop` 會執行關機 flush；但若關機時 DB 正好斷線，關機 flush 會卡在連線重試，可能超過 Docker 預設 10 秒寬限期而被 SIGKILL，遺失範圍與強制終止相同。正式環境若不能遺失，應改寫入持久化的訊息佇列（如 Kafka / Redis Streams）再由消費者寫入 DB。
 - **列表採 offset 分頁**：頁數很深時 DB 仍需掃過前面所有列（`OFFSET 100000` 很慢）；資料持續新增時，翻頁之間插入的新資料會讓後面的頁出現重複或遺漏。正式環境可改用 keyset（cursor）分頁：以上一頁最後一筆的 `(timestamp, id)` 作為下一頁的起點。
 - **即時頁重連期間的資料不會補回**：API 重啟或網路中斷時，重連前的那幾秒在圖上是空白（資料仍有寫入 DB，可從系統管理的歷史查詢看到）。
