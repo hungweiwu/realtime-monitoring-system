@@ -317,9 +317,9 @@ async def update(
 - [x] 禁止原生 SQL 的 grep 檢查無結果
 - [ ] 交付物：README（介紹、技術棧、本地運行、Docker 部署、API 文件連結、三種角色測試帳號、設計決策）、`.env.example`、`sample_data/records.csv`、`docs/architecture.png` 皆已備齊；**GitHub repo（public）⚠ 目前為 private，待通知後改 public**
 
-> 驗證紀錄（10/19，commit `5ae787b`）：重新 clone、刪 volume、無 `.env`，`docker compose build --no-cache` 49 秒、三服務 healthy 共 74 秒；`restart api` 顯示 `shutdown flush wrote 4 metrics (0 left unwritten)`；139 個測試全綠；grep 無結果；三角色 QA 走查（含 admin 停用帳號後被停用者不重整即跳回登入頁）通過。Swagger Authorize 已於 Checkpoint 1（18:05）由使用者手動驗證（admin 登入、`/users/me` 200）。
+> 驗證紀錄（10/19，commit `5ae787b`）：重新 clone、刪 volume、無 `.env`，`docker compose build --no-cache` 49 秒、三服務 healthy 共 74 秒；`restart api` 顯示 `shutdown flush wrote 4 metrics (0 left unwritten)`；139 個測試全綠；grep 無結果；三角色 QA 走查（含 admin 停用帳號後被停用者不重整即跳回登入頁）通過。Swagger Authorize 已於 Checkpoint 1（18:05）由使用者手動驗證（admin 登入、`/users/me` 200）。走查中發現並修正 Excel 下載 401 與 viewer 卡在資料管理頁兩個問題。
 >
-> 獨立 review 修正後重新驗證（commit `ebe76c4`）：重新 clone、無 `.env`，`--no-cache` 建置到三服務 healthy 45 秒；163 個測試全綠（新增 migration upgrade／downgrade／upgrade 與 schema 比對）；grep 無結果；以 `core.autocrlf=true` clone 確認 `entrypoint.sh` 為 LF。走查中發現並修正 Excel 下載 401 與 viewer 卡在資料管理頁兩個問題。
+> 獨立 review 修正後重新驗證（commit `ebe76c4`）：重新 clone、無 `.env`，`--no-cache` 建置到三服務 healthy 45 秒；163 個測試全綠（新增 migration upgrade／downgrade／upgrade 與 schema 比對）；grep 無結果；以 `core.autocrlf=true` clone 確認 `entrypoint.sh` 為 LF。
 
 ## 13. 優先序（時間不夠時由下往上砍）
 
