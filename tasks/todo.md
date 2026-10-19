@@ -11,22 +11,24 @@
 
 ## Phase 1：基礎建設（10/19 晚）
 
-### T1：專案骨架與 Docker Compose（db + api，/health）
+### ✅ T1：專案骨架與 Docker Compose（db + api，/health）
 **Description:** 建立 backend uv 專案、多階段 Dockerfile、entrypoint、pydantic-settings 設定、async engine 與 session，以及 `GET /health`（以 `select(literal(1))` 檢查 DB）。compose 先只有 db 與 api。
 
 **Acceptance criteria:**
-- [ ] 不建 `.env`，`docker compose up --build` 後 db 和 api 都是 healthy（asyncmy 在 aarch64 建置成功）
-- [ ] `curl localhost:8000/health` 回傳 DB 狀態 ok；停掉 db 後回報失敗（非 200）
-- [ ] api 映像為多階段建置：runtime 沒有 build-essential、以非 root 執行；`uv.lock` 已 commit
+- [x] 不建 `.env`，`docker compose up --build` 後 db 和 api 都是 healthy（asyncmy 在 aarch64 建置成功）
+- [x] `curl localhost:8000/health` 回傳 DB 狀態 ok；停掉 db 後回報失敗（非 200）
+- [x] api 映像為多階段建置：runtime 沒有 build-essential、以非 root 執行；`uv.lock` 已 commit
 
 **Verification:**
-- [ ] `docker compose up --build`，接著 `docker compose ps` 顯示 healthy
-- [ ] `docker compose exec api id -u` 不是 0
-- [ ] `docker compose exec api cat /proc/1/cmdline | tr '\0' ' '` 顯示 PID 1 是 uvicorn（slim 映像沒有 ps）
+- [x] `docker compose up --build`，接著 `docker compose ps` 顯示 healthy
+- [x] `docker compose exec api id -u` 不是 0
+- [x] `docker compose exec api cat /proc/1/cmdline | tr '\0' ' '` 顯示 PID 1 是 uvicorn（slim 映像沒有 ps）
 
 **Dependencies:** 無
 **Files:** `docker-compose.yml`、`backend/Dockerfile`、`backend/entrypoint.sh`、`backend/pyproject.toml`、`backend/app/{main.py,core/config.py,db/session.py}`、`.gitignore`、`.env.example`
 **Scope:** M（檔案多，但每個檔案都很小）
+
+> 實作備註：asyncmy 0.2.16 有 manylinux aarch64 wheel，builder 不需 build-essential（plan 的預防措施未採用）。
 
 ### T2：資料模型與 Alembic 初始 migration
 **Description:** 建立 `Base`、`UTCDateTime` TypeDecorator、四個 model（含索引、`role` 用 `native_enum=False`），用 `alembic init -t async` 設定 env，並產生初始 migration。entrypoint 的 `alembic upgrade head` 開始生效。

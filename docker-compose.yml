@@ -1,0 +1,57 @@
+name: monitor
+
+# 所有變數都有開發用預設值，不建 .env 也能直接 docker compose up；正式環境務必覆寫密碼
+x-db-env: &db-env
+  DB_HOST: db
+  DB_PORT: 3306
+  DB_USER: ${DB_USER:-monitor}
+  DB_PASSWORD: ${DB_PASSWORD:-monitorpass}
+  DB_NAME: ${DB_NAME:-monitor}
+
+services:
+  db:
+    image: mariadb:11.7
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MARIADB_DATABASE: ${DB_NAME:-monitor}
+      MARIADB_USER: ${DB_USER:-monitor}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-monitorpass}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "${DB_HOST_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - backend
+
+  api:
+    build: ./backend
+    environment:
+      <<: *db-env
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # slim 映像沒有 curl，用 Python 標準庫打 /health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - backend
+
+volumes:
+  db_data:
+
+networks:
+  backend:

@@ -1,0 +1,27 @@
+[project]
+name = "monitor-api"
+version = "0.1.0"
+description = "Real-time data analytics and monitoring API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "asyncmy>=0.2.16",
+    "fastapi>=0.146.0",
+    "pydantic-settings>=2.16.0",
+    "sqlalchemy[asyncio]>=2.1.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.1",
+]
