@@ -225,7 +225,7 @@
 **Files:** `frontend/views/monitor.py`、`frontend/utils/config.py`、`docker-compose.yml`
 **Scope:** S
 
-> 實作備註：18:47 開始、約 1 小時內完成，未觸發退回方案 B。`components.v1.html` 在 Streamlit 1.66 已棄用，改用 `st.iframe`（HTML 字串走 srcdoc）。瀏覽器驗證：每秒更新、異常紅點與告警（以 METRIC_ANOMALY_HIGH=60 重啟確認）、API 重建後自動重連、帳號停用後收到 1008 顯示重新登入且不重連。
+> 實作備註：18:47 開始，未超過 2 小時時限，未觸發退回方案 B。`components.v1.html` 在 Streamlit 1.66 已棄用，改用 `st.iframe`（HTML 字串走 srcdoc）。瀏覽器驗證：每秒更新、異常紅點與告警（以 METRIC_ANOMALY_HIGH=60 重啟確認）、API 重建後自動重連、帳號停用後收到 1008 顯示重新登入且不重連。
 
 ### ✅ Checkpoint 3（10/20 18:00）
 - [ ] 前端即時圖正常，`metrics` 批次寫入的 log 正常，restart 時有關機 flush
