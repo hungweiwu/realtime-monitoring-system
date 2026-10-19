@@ -29,7 +29,8 @@ async def create_record(payload: RecordCreate, session: SessionDep, user: Writer
 @router.post("/import", response_model=ImportResult)
 async def import_records(file: UploadFile, session: SessionDep, user: Writer) -> ImportResult:
     """上傳 CSV 或 JSON 批量匯入。合格列寫入、不合格列回報（部分成功）。"""
-    # 多讀 1 byte 即可判斷是否超過上限，不必把超大檔案整個讀進記憶體
+    # 多讀 1 byte 即可判斷是否超過上限，超出部分不會讀進 Python 記憶體。
+    # 注意 Starlette 在 handler 執行前已收完整個上傳（大檔暫存磁碟），這裡擋不住頻寬與磁碟用量
     raw = await file.read(get_settings().import_max_bytes + 1)
     return await import_service.import_records(session, file.filename or "", raw, actor=user)
 
