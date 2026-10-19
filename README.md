@@ -76,8 +76,12 @@ docker compose up --build
 
 ## 架構
 
+![系統架構](docs/architecture.png)
+
+> 互動版（可縮放、追蹤連線）：下載 `docs/architecture.html` 以瀏覽器開啟；圖的來源為 `docs/architecture.archify.json`（[archify](https://github.com/tt-a1i/archify) 產生）。以下 Mermaid 版本由 GitHub 直接渲染。
+
 ```mermaid
-flowchart LR
+flowchart TB
     browser["使用者瀏覽器"]
 
     subgraph compose["Docker Compose（network: backend）"]

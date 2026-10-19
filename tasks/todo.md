@@ -330,23 +330,25 @@
 
 > 實作備註：分頁用 `st.tabs(key=..., on_change="rerun")`，伺服器記住目前分頁，且以 `.open` 只抓選取分頁的資料。瀏覽器雙分頁驗證：admin 停用 user 後，user 不重新整理按「下一頁」→ 401 → 導回登入頁並顯示「登入已失效」。flash 訊息與分頁導覽抽成 `utils/ui.py`，records 頁同步改用。
 
-### T17：README、架構圖、交付文件（**不可砍，10/21 12:00 前開始**）
+### ✅ T17：README、架構圖、交付文件（**不可砍，10/21 12:00 前開始**）
 **Description:**
 - README 內容：介紹、技術棧、一行啟動、本地開發、測試指令、API 文件連結、三種角色測試帳號、設計決策（批次寫入、即時資料接法、權限分層、JWT 只放 id、時間存 UTC、單一 worker、token 走 query 的取捨、多階段建置、不用原生 SQL 的做法）、已知限制
 - 用 archify 產生 `docs/architecture.{png,html}`，超過 20 分鐘就改用 Mermaid
 - 核對 `.env.example` 的變數完整
 
 **Acceptance criteria:**
-- [ ] README 涵蓋 SPEC 第 12 節的交付項目
-- [ ] 架構圖顯示三個容器、network、volume、REST/WS 流向、批次寫入路徑
-- [ ] `.env.example` 與 `config.py` 的變數一一對應
+- [x] README 涵蓋 SPEC 第 12 節的交付項目
+- [x] 架構圖顯示三個容器、network、volume、REST/WS 流向、批次寫入路徑
+- [x] `.env.example` 與 `config.py` 的變數一一對應
 
 **Verification:**
-- [ ] 照著 README 從頭操作一遍
+- [x] 照著 README 從頭操作一遍
 
 **Dependencies:** 所有功能任務
 **Files:** `README.md`、`docs/architecture.{png,html}`、`.env.example`
 **Scope:** S
+
+> 實作備註：README 依指定順序（一行啟動＋帳號 → 網址 → 功能與技術棧 → 架構 → 設計決策 → 已知限制），繁體中文。架構圖：Mermaid（flowchart＋sequence，已在 GitHub 確認渲染）為主；archify 產生 docs/architecture.html 與 PNG（showcase 驗證 9 項全過、visual-check 四種視窗無溢出）。
 
 ### T18：交件驗證
 **Description:** 跑一次 `/review`，修正發現的問題；做禁止原生 SQL 的 grep；在乾淨環境驗證（新目錄重新 clone、`docker compose down -v`、不建 `.env`）；逐項勾選 SPEC 第 12 節；把 repo 設成 public。

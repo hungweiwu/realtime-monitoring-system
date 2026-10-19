@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "即時資料分析與監控系統 架構",
+    "output": "architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "使用者瀏覽器",
+      "sublabel": "Streamlit UI + 即時頁 JS",
+      "pos": [
+        40,
+        250
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "streamlit",
+      "type": "frontend",
+      "label": "Streamlit",
+      "sublabel": "frontend :8501",
+      "pos": [
+        300,
+        120
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "rest",
+      "type": "backend",
+      "label": "REST API",
+      "sublabel": "FastAPI /api/v1",
+      "pos": [
+        620,
+        120
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "JWT + 角色"
+    },
+    {
+      "id": "ws",
+      "type": "backend",
+      "label": "WebSocket",
+      "sublabel": "/api/v1/ws/metrics",
+      "pos": [
+        620,
+        380
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "generator",
+      "type": "backend",
+      "label": "資料產生器",
+      "sublabel": "每秒 1 筆",
+      "pos": [
+        880,
+        380
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "buffer",
+      "type": "messagebus",
+      "label": "記憶體 buffer",
+      "sublabel": "5 秒或 50 筆 flush",
+      "pos": [
+        880,
+        250
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "MariaDB 11.7",
+      "sublabel": "db :3306（僅內部網路）",
+      "pos": [
+        1140,
+        120
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "volume",
+      "type": "database",
+      "label": "db_data",
+      "sublabel": "named volume",
+      "pos": [
+        1140,
+        380
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose network: backend",
+      "wraps": [
+        "streamlit",
+        "rest",
+        "ws",
+        "generator",
+        "buffer",
+        "db"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "api 容器（uvicorn 單一 worker）",
+      "wraps": [
+        "rest",
+        "ws",
+        "generator",
+        "buffer"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-streamlit",
+      "from": "browser",
+      "to": "streamlit",
+      "label": "HTTP :8501",
+      "variant": "emphasis"
+    },
+    {
+      "id": "streamlit-to-rest",
+      "from": "streamlit",
+      "to": "rest",
+      "label": "REST http://api:8000"
+    },
+    {
+      "id": "rest-to-db",
+      "from": "rest",
+      "to": "db",
+      "label": "SQLAlchemy async"
+    },
+    {
+      "id": "browser-to-ws",
+      "from": "browser",
+      "to": "ws",
+      "label": "WS 直連 :8000",
+      "variant": "emphasis"
+    },
+    {
+      "id": "generator-to-ws",
+      "from": "generator",
+      "to": "ws",
+      "label": "broadcast"
+    },
+    {
+      "id": "generator-to-buffer",
+      "from": "generator",
+      "to": "buffer",
+      "label": "append"
+    },
+    {
+      "id": "buffer-to-db",
+      "from": "buffer",
+      "to": "db",
+      "label": "add_all 批次寫入"
+    },
+    {
+      "id": "db-to-volume",
+      "from": "db",
+      "to": "volume",
+      "label": "持久化",
+      "variant": "dashed",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "兩條連線路徑",
+      "items": [
+        "Streamlit Python 端以服務名 api 呼叫 REST",
+        "即時頁 JS 由瀏覽器直連 WebSocket（真正的 push）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "批次寫入",
+      "items": [
+        "同一筆資料同時廣播與進 buffer",
+        "失敗放回 buffer 重試；關機時最後 flush"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "權限",
+      "items": [
+        "JWT 只放 user id，角色每次從 DB 讀",
+        "角色檢查在 dependency，建立者檢查在 service"
+      ]
+    }
+  ]
+}
