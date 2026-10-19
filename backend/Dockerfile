@@ -18,7 +18,8 @@ RUN uv sync --frozen
 COPY . .
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
-CMD ["pytest", "-q"]
+# 設逾時避免卡住的測試（例如 WebSocket 一直等不到訊息）拖住整個流程
+CMD ["timeout", "-s", "INT", "300", "pytest", "-q"]
 
 FROM python:3.12-slim AS runtime
 RUN useradd --create-home --uid 1000 app

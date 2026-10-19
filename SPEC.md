@@ -96,7 +96,7 @@
 - [ ] 背景產生器：FastAPI lifespan 啟動的 asyncio task，每秒（`METRIC_INTERVAL_SECONDS`）產生一筆隨機資料（隨機 category）
 - [ ] `value > METRIC_ANOMALY_HIGH` 或 `< METRIC_ANOMALY_LOW` 標記 `is_anomaly`
 - [ ] `WS /api/v1/ws/metrics?token=<JWT>`：驗證失敗時**先 `accept()` 再以 close code 1008 關閉**（未 accept 就 close，伺服器只會回 HTTP 403，瀏覽器端看不到 1008 與原因）；成功後推送每筆即時資料（JSON）
-  - 瀏覽器 WebSocket 無法帶 header，故用 query parameter（FastAPI 官方範例做法）。代價是 token 會出現在 access log → 對 ws 路徑過濾 uvicorn access log，README 說明
+  - 瀏覽器 WebSocket 無法帶 header，故用 query parameter（FastAPI 官方範例做法）。代價是 token 會出現在 uvicorn log（WebSocket 握手記在 `uvicorn.error`，不在 access log）→ 在 `uvicorn.access` 與 `uvicorn.error` 加 filter 把 `token=...` 遮成 `token=***`，保留連線紀錄，README 說明
 - [ ] `GET /api/v1/metrics/latest?limit=N`：最新 N 筆即時資料（所有角色可讀，預設 60、上限 500），供方案 B 與即時頁初次載入使用。資料取自記憶體中尚未寫入的 buffer 加上 DB，確保不漏最近幾秒
 - [ ] **批次寫入**：記憶體 buffer，每 `FLUSH_INTERVAL_SECONDS` 秒或累積 `FLUSH_BATCH_SIZE` 筆時整批寫入；關機 flush 剩餘資料（細節見 6.2）
 - [ ] 前端即時折線圖 + 柱狀圖（各 category 計數或最新值），異常點不同顏色並顯示告警

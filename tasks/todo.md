@@ -169,7 +169,7 @@
 **Files:** `backend/app/realtime/{buffer.py,generator.py}`、`backend/app/main.py`、`backend/app/core/config.py`、`backend/tests/test_buffer.py`
 **Scope:** M
 
-### T9：WebSocket 推送與 /metrics/latest
+### ✅ T9：WebSocket 推送與 /metrics/latest
 **Description:**
 - `realtime/ws_manager.py`：以 gather + timeout 廣播，失敗的連線移除
 - `WS /ws/metrics?token=`：先 accept 再驗證，失敗以 1008 關閉
@@ -178,18 +178,20 @@
 - uvicorn access log 過濾掉 ws 路徑
 
 **Acceptance criteria:**
-- [ ] 帶有效 token 連線每秒收到一筆 JSON；無效 token 收到 close code 1008
-- [ ] `/metrics/latest?limit=10` 回傳最新 10 筆，包含還沒 flush 的資料；viewer 可讀
-- [ ] access log 裡看不到 token
+- [x] 帶有效 token 連線每秒收到一筆 JSON；無效 token 收到 close code 1008
+- [x] `/metrics/latest?limit=10` 回傳最新 10 筆，包含還沒 flush 的資料；viewer 可讀
+- [x] access log 裡看不到 token
 
 **Verification:**
-- [ ] `test_ws.py`（用 Starlette TestClient 的 websocket_connect 測驗證成功與失敗）。TestClient 會自己開一個 event loop，測試用 engine 要改用 `NullPool`，避免連線池裡的連線綁在別的 loop 上，出現 "attached to a different loop" 錯誤
-- [ ] 若 30 分鐘內仍卡在 event loop 問題：WS 測試只測 token 驗證函式，連線行為改成手動驗證，並在 README 註明
-- [ ] 手動用瀏覽器 console 執行 `new WebSocket(...)` 確認
+- [x] `test_ws.py`（用 Starlette TestClient 的 websocket_connect 測驗證成功與失敗）。TestClient 會自己開一個 event loop，測試用 engine 要改用 `NullPool`，避免連線池裡的連線綁在別的 loop 上，出現 "attached to a different loop" 錯誤
+- [x] （未觸發）若 30 分鐘內仍卡在 event loop 問題：WS 測試只測 token 驗證函式，連線行為改成手動驗證，並在 README 註明
+- [x] 手動用瀏覽器 console 執行 `new WebSocket(...)` 確認
 
 **Dependencies:** T8
 **Files:** `backend/app/realtime/ws_manager.py`、`backend/app/api/v1/{ws.py,metrics.py}`、`backend/app/realtime/generator.py`、`backend/app/core/logging.py`、`backend/tests/test_ws.py`
 **Scope:** M
+
+> 實作備註：uvicorn 的 WebSocket 握手 log 在 `uvicorn.error` 而非 access log，改為兩個 logger 都遮蔽 token。TestClient 測試曾因「accept 後、註冊進 manager 前就廣播」的時序問題卡住，測試改為先等註冊完成；test stage CMD 加 300 秒逾時。
 
 ### T10：Streamlit 骨架（登入、登出、依角色 navigation）
 **Description:** frontend uv 專案、多階段 Dockerfile，compose 加入 frontend（依賴 api healthy）。`utils/api.py`（httpx，`API_BASE_URL`，401 時清 session）、`utils/auth.py`，`app.py` 用 `st.navigation` 依登入狀態與角色組出頁面；先放 login 頁與空白功能頁。

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     flush_batch_size: int = 50
     # DB 長時間寫不進去時 buffer 的上限，超過丟最舊的，避免記憶體無限成長
     buffer_max_size: int = 10_000
+    # 單一 WebSocket 連線送一筆資料的逾時，超過視為慢連線並斷開
+    ws_send_timeout_seconds: float = 1.0
 
     # 種子帳號：啟動時若不存在就建立，README 列出供審查者測試
     seed_admin_username: str = "admin"

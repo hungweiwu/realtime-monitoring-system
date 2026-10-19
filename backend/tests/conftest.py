@@ -24,6 +24,7 @@ async def _schema() -> AsyncIterator[None]:
 @pytest_asyncio.fixture(autouse=True)
 async def _clean_tables() -> AsyncIterator[None]:
     yield
+    app.state.metric_buffer.clear()
     async with SessionLocal() as session:
         # 子表先刪，避免 FK 擋住
         for table in reversed(Base.metadata.sorted_tables):

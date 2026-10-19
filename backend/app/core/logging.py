@@ -1,4 +1,23 @@
+import logging
 import logging.config
+import re
+
+_TOKEN_PATTERN = re.compile(r"(token=)[^&\s\"]+")
+
+
+class TokenRedactingFilter(logging.Filter):
+    """遮蔽 log 中的 token query 參數。
+
+    瀏覽器 WebSocket 無法帶 header，JWT 只能放 query string；uvicorn 會把完整路徑寫進 log
+    （WebSocket 握手記在 uvicorn.error，HTTP 記在 uvicorn.access），不遮蔽 token 就會外洩到日誌。
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if "token=" in message:
+            record.msg = _TOKEN_PATTERN.sub(r"\1***", message)
+            record.args = None
+        return True
 
 
 def setup_logging(level: str) -> None:
@@ -22,3 +41,5 @@ def setup_logging(level: str) -> None:
             },
         }
     )
+    for name in ("uvicorn.access", "uvicorn.error"):
+        logging.getLogger(name).addFilter(TokenRedactingFilter())

@@ -27,6 +27,8 @@ class MetricBuffer:
         self._batch_size = batch_size
         self._max_size = max_size
         self._items: list[MetricPoint] = []
+        # 正在寫入 DB、尚未 commit 的那一批：snapshot 仍要看得到，避免 /metrics/latest 漏掉
+        self._inflight: list[MetricPoint] = []
         self._flush_requested = asyncio.Event()
         self._flush_lock = asyncio.Lock()
         self._stopping = False
@@ -37,7 +39,12 @@ class MetricBuffer:
         return len(self._items)
 
     def snapshot(self) -> list[MetricPoint]:
-        return list(self._items)
+        """尚未確定寫入 DB 的資料（寫入中的批次 + 待寫），依時間順序。"""
+        return self._inflight + self._items
+
+    def clear(self) -> None:
+        self._items = []
+        self._inflight = []
 
     def append(self, point: MetricPoint) -> None:
         self._items.append(point)
@@ -61,6 +68,7 @@ class MetricBuffer:
             # 先換成新的空 list 再寫入：這兩步之間沒有 await，產生器不會插隊；
             # 寫入期間產生器 append 的資料進新 list，不會被這次 flush 漏掉或重複寫入
             batch, self._items = self._items, []
+            self._inflight = batch
             try:
                 async with self._session_factory() as session:
                     # 每次都建新的 ORM 物件：失敗的 session 裡的物件狀態不可靠，不重用
@@ -72,6 +80,8 @@ class MetricBuffer:
                 self._items = batch + self._items
                 self._trim()
                 return 0
+            finally:
+                self._inflight = []
             logger.info("flushed %d metrics (pending %d)", len(batch), len(self._items))
             return len(batch)
 

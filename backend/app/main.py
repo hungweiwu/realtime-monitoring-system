@@ -14,6 +14,7 @@ from app.core.logging import setup_logging
 from app.db.session import SessionLocal, engine
 from app.realtime.buffer import MetricBuffer
 from app.realtime.generator import run_generator
+from app.realtime.ws_manager import ConnectionManager
 
 setup_logging(get_settings().log_level)
 logger = logging.getLogger(__name__)
@@ -22,16 +23,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    buffer = MetricBuffer(
-        SessionLocal, batch_size=settings.flush_batch_size, max_size=settings.buffer_max_size
-    )
-    app.state.metric_buffer = buffer
+    buffer: MetricBuffer = app.state.metric_buffer
 
     generator_task = flush_task = None
     if settings.enable_generator:
         generator_task = asyncio.create_task(
             run_generator(
-                sinks=[buffer.append],
+                sinks=[buffer.append, app.state.ws_manager.broadcast],
                 interval=settings.metric_interval_seconds,
                 low=settings.metric_anomaly_low,
                 high=settings.metric_anomaly_high,
@@ -56,6 +54,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Real-time Monitoring API", version="0.1.0", lifespan=lifespan)
 register_exception_handlers(app)
+# 在建立 app 時就建好（而非在 lifespan 內）：不跑 lifespan 的測試 client 也拿得到
+app.state.metric_buffer = MetricBuffer(
+    SessionLocal,
+    batch_size=get_settings().flush_batch_size,
+    max_size=get_settings().buffer_max_size,
+)
+app.state.ws_manager = ConnectionManager(send_timeout=get_settings().ws_send_timeout_seconds)
 app.include_router(api_router)
 
 

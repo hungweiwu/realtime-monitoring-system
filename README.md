@@ -30,6 +30,12 @@ MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀�
 - uvicorn 只能 1 個 worker：多 worker 各自跑一個產生器，資料會重複。
 - 失敗放回 buffer 屬於 **at-least-once**：若 commit 其實已在 DB 成功、只是回應送回前連線中斷，程式會判定失敗並重送，造成重複資料。正式環境可為每筆資料產生唯一鍵（例如 UUID）並加 unique constraint，以 `INSERT ... ON DUPLICATE KEY` 類的冪等寫入去重。
 
+### WebSocket 推送
+- 瀏覽器原生 WebSocket 無法帶 `Authorization` header，JWT 只能放 query string（`?token=`）。代價是 token 會出現在 uvicorn 的 log：WebSocket 握手記在 `uvicorn.error`（不是 access log）。因此在兩個 logger 都加上 filter，把 `token=...` 遮成 `token=***`。
+- 驗證失敗時**先 accept 再以 close code 1008 關閉**：若未 accept 就 close，伺服器只會回 HTTP 403，瀏覽器端拿不到 1008 與原因。
+- 廣播以 `asyncio.gather` 並行送出，每條連線設 1 秒逾時；逾時或出錯的連線直接移除。若逐一 `await`，一條慢連線會拖住產生器，所有人的資料都延遲。
+- `GET /api/v1/metrics/latest` 合併 DB 與 buffer 中尚未寫入（含寫入中）的資料，前端初次載入或 polling 時不會漏掉最近幾秒。
+
 ### 禁止原生 SQL
 應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。
 
