@@ -1,8 +1,7 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import Role
+from app.schemas.common import UTCDatetimeOut
 
 
 class UserRegister(BaseModel):
@@ -20,7 +19,7 @@ class UserRead(BaseModel):
     username: str
     role: Role
     is_active: bool
-    created_at: datetime
+    created_at: UTCDatetimeOut
 
 
 class Token(BaseModel):

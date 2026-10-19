@@ -6,7 +6,7 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.models  # noqa: F401  # 註冊所有 model 到 Base.metadata
-from app.core.security import hash_password
+from app.core.security import create_access_token, hash_password
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.main import app
@@ -59,3 +59,7 @@ async def create_user(
     session.add(user)
     await session.commit()
     return user
+
+
+def auth_headers(user: User) -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}

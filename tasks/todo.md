@@ -96,17 +96,17 @@
 
 ## Phase 2：Records（10/20 上午）
 
-### T5：Records CRUD 與建立者權限
+### ✅ T5：Records CRUD 與建立者權限
 **Description:** schemas（Create、Put、Patch、Read）、`record_service`（建立者檢查放在 service 層）、POST、GET by id、PUT、PATCH、DELETE，每個寫入操作都呼叫 `log_action`。
 
 **Acceptance criteria:**
-- [ ] user 與 admin 可新增；viewer 新增回 403
-- [ ] user 改或刪別人的資料回 403；admin 可改任何人的；不存在回 404
-- [ ] PATCH 只更新有帶的欄位；PUT 缺欄位回 422
-- [ ] body 的 `timestamp` 用 `AwareDatetime`：不帶時區回 422（不是 500）
+- [x] user 與 admin 可新增；viewer 新增回 403
+- [x] user 改或刪別人的資料回 403；admin 可改任何人的；不存在回 404
+- [x] PATCH 只更新有帶的欄位；PUT 缺欄位回 422
+- [x] body 的 `timestamp` 用 `AwareDatetime`：不帶時區回 422（不是 500）
 
 **Verification:**
-- [ ] `test_records_crud.py` 全綠
+- [x] `test_records_crud.py` 全綠
 
 **Dependencies:** T4
 **Files:** `backend/app/schemas/record.py`、`backend/app/services/record_service.py`、`backend/app/api/v1/records.py`、`backend/tests/test_records_crud.py`
