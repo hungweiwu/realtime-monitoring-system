@@ -87,7 +87,17 @@ def main() -> None:
             },
         )
     else:
-        st.info("沒有符合條件的資料")
+        filtered = any(k in params for k in ("category", "start", "end", "min_value", "max_value"))
+        if filtered:
+            st.info("沒有符合條件的資料")
+        elif can_write:
+            # 首次啟動時 records 是空的，提示審查者怎麼放入範例資料
+            st.info(
+                "目前沒有資料。可用 user 或 admin 帳號在下方「批量匯入」上傳 "
+                "sample_data/records.csv 範例資料。"
+            )
+        else:
+            st.info("目前沒有資料，請由 user 或 admin 匯入。")
 
     if not can_write:
         return

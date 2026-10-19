@@ -18,6 +18,8 @@ docker compose up --build
 
 新註冊的帳號預設為 User，由 Admin 在「系統管理」調整角色。
 
+首次啟動時 records（手動資料）是空的，可用 user 帳號在「資料管理 → 批量匯入」上傳 `sample_data/records.csv`；即時資料（metrics）會由後端每秒自動產生。
+
 > 正式環境務必覆寫 `JWT_SECRET_KEY`、資料庫密碼與種子帳號密碼。
 
 ## 服務網址
