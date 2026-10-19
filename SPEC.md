@@ -74,55 +74,56 @@
 ## 5. 功能需求與驗收條件
 
 ### 5.1 使用者管理
-- [ ] `POST /api/v1/auth/register`：username 3–32 字元 `[A-Za-z0-9_]`、password ≥ 8 字元；重複帳號回 409
-- [ ] Register schema 只有 `username`、`password`，**不含 role**，且 `model_config = ConfigDict(extra="forbid")`（多帶欄位回 422），角色一律由後端設為 user
-- [ ] 驗收：註冊時帶 `role=admin` 不會成為 admin（回 422，且不建立帳號）
-- [ ] `POST /api/v1/auth/login`：OAuth2 password flow（form），回傳 `{access_token, token_type}`；Swagger 可直接 Authorize
-- [ ] `GET /api/v1/users/me`
-- [ ] 未登入或 token 無效回 401；已停用帳號回 401；權限不足回 403
+- [x] `POST /api/v1/auth/register`：username 3–32 字元 `[A-Za-z0-9_]`、password ≥ 8 字元；重複帳號回 409
+- [x] Register schema 只有 `username`、`password`，**不含 role**，且 `model_config = ConfigDict(extra="forbid")`（多帶欄位回 422），角色一律由後端設為 user
+- [x] 驗收：註冊時帶 `role=admin` 不會成為 admin（回 422，且不建立帳號）
+- [x] `POST /api/v1/auth/login`：OAuth2 password flow（form），回傳 `{access_token, token_type}`；Swagger 可直接 Authorize（驗證方式：openapi.json 含 OAuth2 password flow、以 form 登入成功；Swagger 頁面的 Authorize 按鈕未由實作者實際點擊）
+- [x] `GET /api/v1/users/me`
+- [x] 未登入或 token 無效回 401；已停用帳號回 401；權限不足回 403
 
 ### 5.2 資料管理
-- [ ] `POST /api/v1/records`、`GET /api/v1/records/{id}`、`PUT /api/v1/records/{id}`（整筆）、`PATCH /api/v1/records/{id}`（部分）、`DELETE /api/v1/records/{id}`
-- [ ] `GET /api/v1/records`：
+- [x] `POST /api/v1/records`、`GET /api/v1/records/{id}`、`PUT /api/v1/records/{id}`（整筆）、`PATCH /api/v1/records/{id}`（部分）、`DELETE /api/v1/records/{id}`
+- [x] `GET /api/v1/records`：
   - 分頁：`page`（≥1）、`size`（1–100，預設 20）
   - 篩選：`category`、`start` / `end`（timestamp）、`min_value` / `max_value`
   - 排序：`sort_by` ∈ `Literal["timestamp","value","created_at","title"]`、`order` ∈ `asc|desc`（白名單，不接受任意欄位名）
   - 回傳 `{items, total, page, size}`
-- [ ] `POST /api/v1/records/import`：上傳 CSV 或 JSON（依副檔名判斷），逐列 Pydantic 驗證，**部分成功**：合格列以單一 transaction `add_all` 寫入，不合格列回報。回傳 `{success_count, failed_count, errors: [{row, message}]}`。上限 5 MB / 10,000 列，超過回 413
-- [ ] 匯入的 `timestamp` 若不帶時區，視為 **Asia/Taipei** 再轉 UTC 儲存；帶時區則直接轉 UTC
-- [ ] 修改 / 刪除僅限建立者或 Admin，否則 403；不存在回 404
+- [x] `POST /api/v1/records/import`：上傳 CSV 或 JSON（依副檔名判斷），逐列 Pydantic 驗證，**部分成功**：合格列以單一 transaction `add_all` 寫入，不合格列回報。回傳 `{success_count, failed_count, errors: [{row, message}]}`。上限 5 MB / 10,000 列，超過回 413
+- [x] 匯入的 `timestamp` 若不帶時區，視為 **Asia/Taipei** 再轉 UTC 儲存；帶時區則直接轉 UTC
+- [x] 修改 / 刪除僅限建立者或 Admin，否則 403；不存在回 404
 
 ### 5.3 即時監控
-- [ ] 背景產生器：FastAPI lifespan 啟動的 asyncio task，每秒（`METRIC_INTERVAL_SECONDS`）產生一筆隨機資料（隨機 category）
-- [ ] `value > METRIC_ANOMALY_HIGH` 或 `< METRIC_ANOMALY_LOW` 標記 `is_anomaly`
-- [ ] `WS /api/v1/ws/metrics?token=<JWT>`：驗證失敗時**先 `accept()` 再以 close code 1008 關閉**（未 accept 就 close，伺服器只會回 HTTP 403，瀏覽器端看不到 1008 與原因）；成功後推送每筆即時資料（JSON）
+- [x] 背景產生器：FastAPI lifespan 啟動的 asyncio task，每秒（`METRIC_INTERVAL_SECONDS`）產生一筆隨機資料（隨機 category）
+- [x] `value > METRIC_ANOMALY_HIGH` 或 `< METRIC_ANOMALY_LOW` 標記 `is_anomaly`
+- [x] `WS /api/v1/ws/metrics?token=<JWT>`：驗證失敗時**先 `accept()` 再以 close code 1008 關閉**（未 accept 就 close，伺服器只會回 HTTP 403，瀏覽器端看不到 1008 與原因）；成功後推送每筆即時資料（JSON）
   - 瀏覽器 WebSocket 無法帶 header，故用 query parameter（FastAPI 官方範例做法）。代價是 token 會出現在 uvicorn log（WebSocket 握手記在 `uvicorn.error`，不在 access log）→ 在 `uvicorn.access` 與 `uvicorn.error` 加 filter 把 `token=...` 遮成 `token=***`，保留連線紀錄，README 說明
-- [ ] `GET /api/v1/metrics/latest?limit=N`：最新 N 筆即時資料（所有角色可讀，預設 60、上限 500），供方案 B 與即時頁初次載入使用。資料取自記憶體中尚未寫入的 buffer 加上 DB，確保不漏最近幾秒
-- [ ] **批次寫入**：記憶體 buffer，每 `FLUSH_INTERVAL_SECONDS` 秒或累積 `FLUSH_BATCH_SIZE` 筆時整批寫入；關機 flush 剩餘資料（細節見 6.2）
-- [ ] 前端即時折線圖 + 柱狀圖（各 category 計數或最新值），異常點不同顏色並顯示告警
+- [x] `GET /api/v1/metrics/latest?limit=N`：最新 N 筆即時資料（所有角色可讀，預設 60、上限 500），供方案 B 與即時頁初次載入使用。資料取自記憶體中尚未寫入的 buffer 加上 DB，確保不漏最近幾秒
+- [x] **批次寫入**：記憶體 buffer，每 `FLUSH_INTERVAL_SECONDS` 秒或累積 `FLUSH_BATCH_SIZE` 筆時整批寫入；關機 flush 剩餘資料（細節見 6.2）
+- [x] 前端即時折線圖 + 柱狀圖（各 category 計數或最新值），異常點不同顏色並顯示告警
 
 ### 5.4 資料分析
 所有端點接受 `source` ∈ `records|metrics`（預設 `metrics`）、`start` / `end`、`category` 篩選；兩表共用同一套聚合函式。
-- [ ] `GET /api/v1/analytics/summary`：count、sum、avg、max、min
-- [ ] `GET /api/v1/analytics/by-category`：每個 category 的 count / avg / max / min
-- [ ] `GET /api/v1/analytics/trend?interval=minute|hour|day`：依時間區間分組（`func.date_format` 截斷時間）
-- [ ] `GET /api/v1/analytics/export`：下載 `.xlsx`，套用同樣篩選；`data` 工作表（上限 50,000 列）＋ `summary` 工作表
-- [ ] 聚合全部用 ORM 表達式（`func.count/avg/max/min`、`group_by`），不寫 SQL 字串
+- [x] `GET /api/v1/analytics/summary`：count、sum、avg、max、min
+- [x] `GET /api/v1/analytics/by-category`：每個 category 的 count / avg / max / min
+- [x] `GET /api/v1/analytics/trend?interval=minute|hour|day`：依時間區間分組（`func.date_format` 截斷時間）
+- [x] `GET /api/v1/analytics/export`：下載 `.xlsx`，套用同樣篩選；`data` 工作表（上限 50,000 列）＋ `summary` 工作表
+- [x] 聚合全部用 ORM 表達式（`func.count/avg/max/min`、`group_by`），不寫 SQL 字串
 
 ### 5.5 系統管理（Admin only）
-- [ ] `GET /api/v1/admin/users`：使用者列表（分頁）
-- [ ] `PATCH /api/v1/admin/users/{id}`：修改 role / is_active（不可修改自己）
-- [ ] `GET /api/v1/admin/logs`：system_logs 查詢，篩選 level / action / 時間，分頁
-- [ ] `GET /api/v1/admin/db-status`：連線檢查（`select(literal(1))`，**不可用 `text("SELECT 1")`**）、連接池狀態（size / checked_in / checked_out / overflow）、各表筆數（`select(func.count()).select_from(Model)`）、即時 buffer 待寫筆數
-- [ ] `GET /api/v1/admin/metrics`：metrics 歷史查詢，時間範圍 + `anomaly_only`，分頁
+- [x] `GET /api/v1/admin/users`：使用者列表（分頁）
+- [x] `PATCH /api/v1/admin/users/{id}`：修改 role / is_active（不可修改自己）
+- [x] `GET /api/v1/admin/logs`：system_logs 查詢，篩選 level / action / 時間，分頁
+- [x] `GET /api/v1/admin/db-status`：連線檢查（`select(literal(1))`，**不可用 `text("SELECT 1")`**）、連接池狀態（size / checked_in / checked_out / overflow）（實作差異：`overflow` 改為 `overflow_in_use` + `max_overflow`，因 SQLAlchemy `overflow()` 在未用滿時為負數、易誤讀）、各表筆數（`select(func.count()).select_from(Model)`）、即時 buffer 待寫筆數
+- [x] `GET /api/v1/admin/metrics`：metrics 歷史查詢，時間範圍 + `anomaly_only`，分頁
 
 ### 5.6 非功能
-- [ ] 統一錯誤格式 `{"error": {"code", "message", "details"}}`，handler 涵蓋：自訂 `AppError`、`HTTPException`、`RequestValidationError`（422）、未預期例外（500，不洩漏 stack trace）
-- [ ] 日誌：stdlib logging 輸出到 stdout（含時間、level、logger、訊息）；重要操作（登入成功/失敗、註冊、records 新增/修改/刪除/匯入、角色變更、停用、flush 失敗）同時寫入 `system_logs`
-- [ ] `GET /health`：不需登入，回傳 DB 連線狀態，給 compose healthcheck 用
-- [ ] Swagger 在 `/docs`
-- [ ] 所有 request 的時間欄位（body 與 query 參數）型別一律用 Pydantic `AwareDatetime`，沒帶時區回 **422**。理由：`UTCDateTime` 在 bind 階段拒收 naive datetime 時丟的 ValueError 會被 SQLAlchemy 包成 `StatementError` 變成 500，使用者輸入錯誤不該是 500，必須在 API 邊界就擋下。例外：CSV / JSON 匯入維持「無時區視為 Asia/Taipei」，由 `import_service` 自行轉換（見 5.2）
-- [ ] 所有設定由 pydantic-settings 從環境變數讀取；compose 內所有變數都有開發用預設值（`${VAR:-default}`），**不建 `.env` 也能啟動**；`.env.example` 列出全部變數與說明
+- [x] 統一錯誤格式 `{"error": {"code", "message", "details"}}`，handler 涵蓋：自訂 `AppError`、`HTTPException`、`RequestValidationError`（422）、未預期例外（500，不洩漏 stack trace）
+- [x] 日誌：stdlib logging 輸出到 stdout（含時間、level、logger、訊息）；重要操作（登入成功/失敗、註冊、records 新增/修改/刪除/匯入、角色變更、停用、flush 失敗）同時寫入 `system_logs`
+  - 實作差異：flush 失敗只記錄在 stdout（ERROR + stack trace），不寫 `system_logs`——flush 失敗通常就是 DB 無法連線，此時 `system_logs` 也寫不進去
+- [x] `GET /health`：不需登入，回傳 DB 連線狀態，給 compose healthcheck 用
+- [x] Swagger 在 `/docs`
+- [x] 所有 request 的時間欄位（body 與 query 參數）型別一律用 Pydantic `AwareDatetime`，沒帶時區回 **422**。理由：`UTCDateTime` 在 bind 階段拒收 naive datetime 時丟的 ValueError 會被 SQLAlchemy 包成 `StatementError` 變成 500，使用者輸入錯誤不該是 500，必須在 API 邊界就擋下。例外：CSV / JSON 匯入維持「無時區視為 Asia/Taipei」，由 `import_service` 自行轉換（見 5.2）
+- [x] 所有設定由 pydantic-settings 從環境變數讀取；compose 內所有變數都有開發用預設值（`${VAR:-default}`），**不建 `.env` 也能啟動**；`.env.example` 列出全部變數與說明
 
 ## 6. 架構與關鍵設計
 
@@ -307,14 +308,16 @@ async def update(
 
 ## 12. Success Criteria（交件檢查）
 
-- [ ] 乾淨環境（刪 volume、重新 clone、無 `.env`）`docker compose up --build` 三個服務都 healthy
-- [ ] 三個種子帳號可登入，權限行為符合第 4 節表格
-- [ ] 第 5 節所有勾選項目可在 Swagger 或前端操作驗證
-- [ ] 即時頁可看到每秒更新的折線圖與柱狀圖，異常點變色並告警；`metrics` 表筆數持續增加且以批次寫入（log 可見每次 flush 筆數）
-- [ ] `docker compose restart api` 後 log 顯示關機 flush，資料不遺失
-- [ ] 已撰寫的測試全綠（`docker compose --profile test run --rm api-test`）
-- [ ] 禁止原生 SQL 的 grep 檢查無結果
-- [ ] 交付物：GitHub repo（public）、README（介紹、技術棧、本地運行、Docker 部署、API 文件連結、三種角色測試帳號、設計決策）、`.env.example`、`sample_data/records.csv`、`docs/architecture.png`
+- [x] 乾淨環境（刪 volume、重新 clone、無 `.env`）`docker compose up --build` 三個服務都 healthy
+- [x] 三個種子帳號可登入，權限行為符合第 4 節表格
+- [x] 第 5 節所有勾選項目可在 Swagger 或前端操作驗證
+- [x] 即時頁可看到每秒更新的折線圖與柱狀圖，異常點變色並告警；`metrics` 表筆數持續增加且以批次寫入（log 可見每次 flush 筆數）
+- [x] `docker compose restart api` 後 log 顯示關機 flush，資料不遺失
+- [x] 已撰寫的測試全綠（`docker compose --profile test run --rm api-test`）
+- [x] 禁止原生 SQL 的 grep 檢查無結果
+- [ ] 交付物：README（介紹、技術棧、本地運行、Docker 部署、API 文件連結、三種角色測試帳號、設計決策）、`.env.example`、`sample_data/records.csv`、`docs/architecture.png` 皆已備齊；**GitHub repo（public）⚠ 目前為 private，待通知後改 public**
+
+> 驗證紀錄（10/19，commit `5ae787b`）：重新 clone、刪 volume、無 `.env`，`docker compose build --no-cache` 49 秒、三服務 healthy 共 74 秒；`restart api` 顯示 `shutdown flush wrote 4 metrics (0 left unwritten)`；139 個測試全綠；grep 無結果；三角色 QA 走查（含 admin 停用帳號後被停用者不重整即跳回登入頁）通過。走查中發現並修正 Excel 下載 401 與 viewer 卡在資料管理頁兩個問題。
 
 ## 13. 優先序（時間不夠時由下往上砍）
 

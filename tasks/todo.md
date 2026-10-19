@@ -350,12 +350,12 @@
 
 > 實作備註：README 依指定順序（一行啟動＋帳號 → 網址 → 功能與技術棧 → 架構 → 設計決策 → 已知限制），繁體中文。架構圖：Mermaid（flowchart＋sequence，已在 GitHub 確認渲染）為主；archify 產生 docs/architecture.html 與 PNG（showcase 驗證 9 項全過、visual-check 四種視窗無溢出）。
 
-### T18：交件驗證
+### ✅ T18：交件驗證
 **Description:** 跑一次 `/review`，修正發現的問題；做禁止原生 SQL 的 grep；在乾淨環境驗證（新目錄重新 clone、`docker compose down -v`、不建 `.env`）；逐項勾選 SPEC 第 12 節；把 repo 設成 public。
 
 **Acceptance criteria:**
-- [ ] SPEC 第 12 節全部勾選
-- [ ] 乾淨環境一行啟動成功
+- [x] SPEC 第 12 節全部勾選（repo public 一項待通知）
+- [x] 乾淨環境一行啟動成功
 - [ ] GitHub repo 為 public，且可匿名 clone
 
 **Verification:**
@@ -365,5 +365,7 @@
 **Files:** 依 review 結果而定
 **Scope:** S–M
 
+> 實作備註：/review 由獨立 reviewer 子代理執行，修正 2 個 Required 與 2 個安全相關項目，其餘列入 README 已知限制；mutation 測試補了 2 個漏測。乾淨環境 QA 走查發現並修正 Excel 下載 401（`da3a4c0`）與 viewer 卡在資料管理頁（`5ae787b`），修正後由使用者手動走查 7 步驟通過。repo 依指示維持 private。
+
 ### ✅ Checkpoint 5（10/21 15:00 前）
-- [ ] 全部交付項目完成，回信附上 GitHub 連結
+- [ ] 全部交付項目完成，回信附上 GitHub 連結（待：獨立 review、repo 改 public）
