@@ -30,6 +30,16 @@ class Settings(BaseSettings):
     # 匯入資料的時間若沒帶時區，視為此時區
     import_default_timezone: str = "Asia/Taipei"
 
+    # 即時資料產生器與批次寫入
+    enable_generator: bool = True
+    metric_interval_seconds: float = 1.0
+    metric_anomaly_low: float = 10.0
+    metric_anomaly_high: float = 90.0
+    flush_interval_seconds: float = 5.0
+    flush_batch_size: int = 50
+    # DB 長時間寫不進去時 buffer 的上限，超過丟最舊的，避免記憶體無限成長
+    buffer_max_size: int = 10_000
+
     # 種子帳號：啟動時若不存在就建立，README 列出供審查者測試
     seed_admin_username: str = "admin"
     seed_admin_password: str = "admin12345"

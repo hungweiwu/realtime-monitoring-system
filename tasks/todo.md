@@ -153,17 +153,17 @@
 
 ## Phase 3：即時監控與前端骨架（10/20 下午）
 
-### T8：資料產生器、異常標記、批次寫入
+### ✅ T8：資料產生器、異常標記、批次寫入
 **Description:** `realtime/buffer.py`（append 達門檻就 set Event；flush 時換 list 後 `add_all`；失敗放回前端，有上限）、`realtime/generator.py`（每秒產生一筆，依上下限判斷異常），由 lifespan 啟動與停止，關機時先停 generator 再做最後一次 flush。`ENABLE_GENERATOR=false` 時不啟動。
 
 **Acceptance criteria:**
-- [ ] 啟動後 `metrics` 表筆數持續增加，log 顯示每次 flush 的筆數
-- [ ] 達到 `FLUSH_BATCH_SIZE` 時不等間隔就立即 flush；flush 失敗時資料回到 buffer，超過上限丟最舊的
-- [ ] `docker compose restart api` 時 log 出現關機 flush，且筆數符合
+- [x] 啟動後 `metrics` 表筆數持續增加，log 顯示每次 flush 的筆數
+- [x] 達到 `FLUSH_BATCH_SIZE` 時不等間隔就立即 flush；flush 失敗時資料回到 buffer，超過上限丟最舊的
+- [x] `docker compose restart api` 時 log 出現關機 flush，且筆數符合
 
 **Verification:**
-- [ ] `test_buffer.py` 單元測試（門檻觸發、失敗放回、上限丟棄）
-- [ ] 手動執行 restart 並觀察 log
+- [x] `test_buffer.py` 單元測試（門檻觸發、失敗放回、上限丟棄）
+- [x] 手動執行 restart 並觀察 log
 
 **Dependencies:** T4（需要 models 與 session；不依賴 records）
 **Files:** `backend/app/realtime/{buffer.py,generator.py}`、`backend/app/main.py`、`backend/app/core/config.py`、`backend/tests/test_buffer.py`
