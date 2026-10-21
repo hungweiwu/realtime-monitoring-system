@@ -41,7 +41,7 @@ docker compose up --build
 | 使用者管理 | 註冊、登入（JWT，OAuth2 password flow）、登出；Admin / User / Viewer 三種角色 |
 | 資料管理 | Records CRUD；分頁、篩選（分類、時間範圍、數值範圍）、排序；CSV / JSON 批量匯入（逐列驗證、部分成功、回報錯誤列） |
 | 即時監控 | 每秒產生一筆資料、超出閾值標記異常；WebSocket 即時推送；記憶體 buffer 批次寫入 DB；前端即時折線圖＋分類柱狀圖、異常變色與告警 |
-| 資料分析 | 總計／平均／最大／最小、分類聚合、依分／時／日的趨勢；可切換即時資料或手動資料；Excel（.xlsx）匯出 |
+| 資料分析 | 總計／平均／最大／最小、分類聚合、依分／時／日的趨勢；可依時間範圍與分類篩選、切換即時資料或手動資料；Excel（.xlsx）匯出 |
 | 系統管理（Admin） | 使用者列表、修改角色、停用帳號；系統日誌查詢；資料庫狀態（連線、連接池、各表筆數、待寫 buffer）；即時資料歷史查詢 |
 
 ### 主要 API
@@ -122,10 +122,10 @@ sequenceDiagram
     participant U as 瀏覽器
 
     loop 每秒
-        G->>M: broadcast(point)
-        M-->>U: 推送（並行送出，單條逾時 1 秒即斷開）
         G->>B: append(point)
         Note over B: 達 50 筆 → 喚醒 flush
+        G->>M: broadcast(point)
+        M-->>U: 推送（並行送出，單條逾時 1 秒即斷開）
     end
     F->>B: 每 5 秒或被喚醒：換成新的空 list
     F->>D: add_all + commit
@@ -203,7 +203,7 @@ MariaDB `DATETIME` 不存時區。`UTCDateTime` 型別在寫入時轉 UTC、讀�
 逐列驗證，合格列以單一 transaction 一次寫入，不合格列回報資料列序號與原因。上限 5 MB / 10,000 列（超過回 413）。
 
 ### 即時資料批次寫入
-產生器每秒產生一筆資料，同時交給「WebSocket 廣播」與「記憶體 buffer」；buffer 每 5 秒或累積 50 筆（先到者）整批 `add_all` 寫入 DB。
+產生器每秒產生一筆資料，同時交給「記憶體 buffer」與「WebSocket 廣播」；buffer 每 5 秒或累積 50 筆（先到者）整批 `add_all` 寫入 DB。
 - 每秒寫一次 DB 等於每秒一個 transaction；累積後整批寫入，大幅減少 commit 次數與連線占用。
 - 不用共用 `asyncio.Queue`：Queue 每筆只會被一個消費者取走，廣播與寫入會各拿到約一半資料。
 - flush 時先把 buffer 換成新的空 list 再寫入：換的動作沒有 `await`，產生器插不進來；寫入期間的新資料進新 list，不會漏也不會重複。
@@ -236,6 +236,10 @@ Streamlit 每次互動都會重跑整份 script，Python 端無法長期維持�
 - **防公式注入**：openpyxl 會把 `=` 開頭的字串寫成公式；使用者匯入的 title 若是 `=HYPERLINK(...)`，下載者開檔時就會被執行。所有字串一律強制存成文字。
 - Excel 不支援帶時區的時間，因此換成 `ANALYTICS_TIMEZONE`（預設 Asia/Taipei）後去掉時區，欄位標題註明時區。
 - 使用 openpyxl 的 write-only 模式逐列寫入，不在記憶體保留整份工作表物件。
+
+### 日誌
+- 應用程式日誌以標準 `logging` 輸出到 stdout，用 `docker compose logs api` 查看；等級由 `LOG_LEVEL` 設定。
+- 重要操作（登入、登入失敗、註冊、資料新增／修改／刪除／匯入、Admin 修改使用者）另寫入 `system_logs` 表，與業務操作同一個 transaction 提交，可在「系統管理 → 系統日誌」查詢。
 
 ### 禁止原生 SQL
 應用程式與測試碼內全部使用 SQLAlchemy ORM 表達式，健康檢查也是 `select(literal(1))`。可用下列指令檢查（`send_text(` 這類方法名不會誤判）：

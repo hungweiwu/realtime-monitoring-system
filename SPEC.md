@@ -1,7 +1,7 @@
 # Spec：即時資料分析與監控系統
 
 > 截止：**2026/10/21（三）17:00** 前回傳 GitHub 連結。
-> 本文件取代 `SPEC_DRAFT.md`，為開發唯一依據。決策變更先改這裡再改程式。
+> 本文件為開發唯一依據。決策變更先改這裡再改程式。
 
 ---
 
@@ -129,7 +129,7 @@
 
 ### 6.1 Streamlit 接即時資料：方案 A，超時退回 B
 Streamlit 每次互動整份 script 重跑，Python 端無法長期維持 WebSocket 連線。
-- **A（採用）**：即時監控頁用 `st.components.v1.html` 嵌入 JS，由**瀏覽器**直連 WebSocket、Chart.js 畫圖。真正的 push。
+- **A（採用）**：即時監控頁用 `st.iframe` 嵌入 JS，由**瀏覽器**直連 WebSocket、Chart.js 畫圖。真正的 push。
 - **B（退路）**：`st.fragment(run_every="1s")` 定時拉 `GET /api/v1/metrics/latest`（所有角色可讀，見 5.3）。本質是 polling。
 - **降級規則**：方案 A 這一片超過 2 小時未完成即改 B，README 說明取捨。
 
@@ -137,10 +137,10 @@ Streamlit 每次互動整份 script 重跑，Python 端無法長期維持 WebSoc
 
 ### 6.2 批次寫入
 ```
-generator ──每筆──┬─▶ ws_manager.broadcast()   （gather + timeout，失敗連線移除）
-                  └─▶ buffer.append()           （達 BATCH_SIZE → set flush_event）
+generator ──每筆──┬─▶ buffer.append()           （達 BATCH_SIZE → set flush_event）
+                  └─▶ ws_manager.broadcast()   （gather + timeout，失敗連線移除）
 flush_task：等 flush_event 或 FLUSH_INTERVAL 逾時 → 把 buffer 換成新 list → add_all + commit
-lifespan 結束：停 generator → 最後一次 flush
+lifespan 結束：停 generator → 等 flush_task 結束 → 最後一次 flush
 ```
 - **廣播與 flush 不共用 `asyncio.Queue`**：Queue 每筆只會被一個消費者取走，兩個 task 一起消費會各拿到約一半。
 - **廣播不可阻塞產生器**：逐一 `await send` 時，一條慢連線會拖住整個產生器 → 用 `asyncio.gather` 加 `asyncio.wait_for` timeout 並行送出，失敗或逾時的連線移除。
@@ -177,10 +177,10 @@ realtime-monitoring-system/
 │   │   ├── main.py            # app 建立、lifespan（產生器、flush task）、router 掛載
 │   │   ├── seed.py            # 種子帳號（冪等）
 │   │   ├── core/              # config, security(JWT/hash), logging, exceptions, deps(require_role)
-│   │   ├── db/                # engine, session, base
+│   │   ├── db/                # engine, session, base, types
 │   │   ├── models/            # SQLAlchemy models
 │   │   ├── schemas/           # Pydantic
-│   │   ├── api/v1/            # auth, users, records, analytics, admin, ws
+│   │   ├── api/v1/            # auth, users, records, metrics, analytics, admin, ws
 │   │   ├── services/          # 業務邏輯、建立者權限檢查、system_logs 寫入
 │   │   └── realtime/          # generator, buffer, ws_manager
 │   ├── migrations/            # Alembic
@@ -191,7 +191,7 @@ realtime-monitoring-system/
 ├── frontend/
 │   ├── app.py                 # st.navigation：依登入狀態與角色決定可見頁面
 │   ├── views/                 # login, records, monitor, analytics, admin
-│   ├── utils/                 # api client（httpx）, auth/session
+│   ├── utils/                 # api client（httpx）, auth/session, config, timefmt, ui
 │   ├── pyproject.toml / uv.lock
 │   └── Dockerfile             # 多階段
 ├── docs/architecture.png（＋ .html）
@@ -218,7 +218,8 @@ docker compose --profile test run --rm api-test
 
 # 本地開發（API/前端不經 Docker；db 用 dev override 對主機開 3306）
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
-cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn app.main:app --reload
+cd backend && uv sync && uv run alembic upgrade head && uv run python -m app.seed \
+  && uv run uvicorn app.main:app --reload
 cd frontend && uv sync && uv run streamlit run app.py
 
 # 新增 migration
@@ -266,7 +267,7 @@ async def update(
         raise PermissionDeniedError("only the creator or an admin can modify this record")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(record, field, value)
-    await log_action(session, actor, "record.update", f"id={record_id}")
+    log_action(session, "record.update", user_id=actor.id, detail=f"id={record_id}")
     await session.commit()
     return record
 ```
